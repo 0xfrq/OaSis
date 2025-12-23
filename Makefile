@@ -19,7 +19,9 @@ kernel.bin:
 	$(CC) $(CFLAGS) -c kernel/vga.c -o vga.o
 	$(CC) $(CFLAGS) -c kernel/keyboard.c -o keyboard.o
 	$(CC) $(CFLAGS) -c kernel/io.c -o io.o
-	$(LD) $(LDFLAGS) -T kernel/linker.ld -o kernel.bin entry.o kernel.o vga.o keyboard.o io.o
+	$(CC) $(CFLAGS) -c kernel/string.c -o string.o
+	$(LD) $(LDFLAGS) -T kernel/linker.ld -o kernel.bin \
+	    entry.o kernel.o vga.o keyboard.o io.o string.o
 
 
 
