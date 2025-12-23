@@ -1,15 +1,10 @@
 #include "keyboard.h"
+#include "io.h"
+#include "vga.h"
 #include <stdint.h>
 
-static inline uint8_t inb(uint16_t port) {
-    uint8_t ret;
-    __asm__ __volatile__ (
-        "inb %1, %0"
-        : "=a"(ret)
-        : "dN"(port)
-    );
-    return ret;
-}
+#define KEYBOARD_DATA 0x60
+#define KEYBOARD_BUFFER_SIZE 256
 
 static const char keymap[128] = {
     0,  27, '1','2','3','4','5','6','7','8','9','0','-','=', '\b',
@@ -18,31 +13,39 @@ static const char keymap[128] = {
     'z','x','c','v','b','n','m',',','.','/', 0,'*', 0,' ',
 };
 
+static char keyboard_buffer[KEYBOARD_BUFFER_SIZE];
+static int read_pos = 0;
+static int write_pos = 0;
+
+void keyboard_init(void) {
+    // Keyboard will be handled by IRQ 1
+}
+
+void keyboard_interrupt_handler(void) {
+    uint8_t scancode = inb(KEYBOARD_DATA);
+
+    // Ignore key releases (high bit set)
+    if (scancode & 0x80) {
+        return;
+    }
+
+    // Convert scancode to ASCII
+    char c = keymap[scancode];
+    
+    if (c != 0) {
+        keyboard_buffer[write_pos] = c;
+        write_pos = (write_pos + 1) % KEYBOARD_BUFFER_SIZE;
+        
+    }
+}
+
 char keyboard_getchar(void) {
-    uint8_t scancode;
-
-    while (1) {
-        if (!(inb(0x64) & 1))
-            continue;
-
-        scancode = inb(0x60);
-
-        if (scancode & 0x80)
-            continue;
-
-        break;
+    // Wait for input
+    while (read_pos == write_pos) {
+        asm("hlt");  // Sleep until interrupt
     }
 
-    while (1) {
-        if (!(inb(0x64) & 1))
-            continue;
-
-        if (inb(0x60) & 0x80)
-            break;
-    }
-
-    if (scancode == 0x0E)
-        return '\b';
-
-    return keymap[scancode];
+    char c = keyboard_buffer[read_pos];
+    read_pos = (read_pos + 1) % KEYBOARD_BUFFER_SIZE;
+    return c;
 }

@@ -72,3 +72,8 @@ void vga_print(const char* str) {
         vga_putc(str[i]);
     }
 }
+
+
+void vga_set_color(uint8_t fg, uint8_t bg) {
+    color = fg | (bg << 4);
+}
