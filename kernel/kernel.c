@@ -1,16 +1,22 @@
+#include "vga.h"
+#include "keyboard.h"
+#include "io.h"
+
+// void vga_clear(void);
+// void vga_print(const char* str);
+// void vga_putc(char c);
+// char keyboard_getchar(void);
+
 void kernel_main(void) {
-    volatile char* vga = (volatile char*)0xB8000;
-    
-    const char* msg = "WELCOME TO OASIS";
-    int i = 0;
+    outb(0x21, 0xFF);
+    outb(0xA1, 0xFF);
 
-    while(msg[i]) {
-        vga[i*2] = msg[i];
-        vga[i*2+1] = 0x0F;
-        i++;
-    }
+    vga_clear();
+    vga_print("OASIS kernel booted successfully\n");
+    vga_print("> ");
 
-    while(1) {
-        __asm__ __volatile__("hlt");
+    while (1) {
+        char c = keyboard_getchar();
+        vga_putc(c);
     }
 }

@@ -6,7 +6,8 @@ CFLAGS=-m32 \
         -fno-stack-protector \
         -fno-pic \
         -nostdlib \
-        -Wall -Wextra
+        -Wall -Wextra \
+        -Ikernel
 
 LDFLAGS=-m elf_i386
 
@@ -15,7 +16,12 @@ all: iso
 kernel.bin:
 	nasm -f elf32 boot/entry.asm -o entry.o
 	$(CC) $(CFLAGS) -c kernel/kernel.c -o kernel.o
-	$(LD) $(LDFLAGS) -T kernel/linker.ld -o kernel.bin entry.o kernel.o
+	$(CC) $(CFLAGS) -c kernel/vga.c -o vga.o
+	$(CC) $(CFLAGS) -c kernel/keyboard.c -o keyboard.o
+	$(CC) $(CFLAGS) -c kernel/io.c -o io.o
+	$(LD) $(LDFLAGS) -T kernel/linker.ld -o kernel.bin entry.o kernel.o vga.o keyboard.o io.o
+
+
 
 iso: kernel.bin
 	cp kernel.bin iso/boot/
