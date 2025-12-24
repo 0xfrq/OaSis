@@ -7,13 +7,14 @@ e820_map_t e820_map = {0};
 void memory_init(void) {
     e820_map.count = 2;
 
-    e820_map.entries[0].base = 0x00000000;
+    e820_map.entries[0].base   = 0x00000000;
     e820_map.entries[0].length = 0x00100000;
-    e820_map.entries[0].type = E820_RESERVED;
+    e820_map.entries[0].type   = E820_RESERVED;
 
-    e820_map.entries[1].base = 0x00100000;
-    e820_map.entries[1].length = 0x7FE00000;
-    e820_map.entries[0].type = E820_USABLE;
+
+    e820_map.entries[1].base   = 0x00100000;
+    e820_map.entries[1].length = 0x07F00000; 
+    e820_map.entries[1].type   = E820_USABLE;
 }
 
 uint32_t memory_get_total_usable(void) {
@@ -36,11 +37,11 @@ void memory_print_map(void) {
         itoa(i, buf, 10);
         vga_print(buf);
         vga_print("] base: 0x");
-        itoa((uint32_t)(entry->base >> 32), buf, 16);
+        itoa((uint32_t)entry->base, buf, 16);
         vga_print(buf);
 
         vga_print(" Length: 0x");
-        itoa((uint32_t)(entry->length >> 32), buf, 16);
+        itoa((uint32_t)entry->base, buf, 16);
         vga_print(buf);
         itoa((uint32_t)entry->length, buf, 16);
         vga_print(buf);

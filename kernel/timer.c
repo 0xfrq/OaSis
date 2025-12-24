@@ -1,6 +1,7 @@
 #include "timer.h"
 #include "pic.h"
 #include "io.h"
+#include "task.h"
 
 #define PIT_CHANNEL_0 0x40
 #define PIT_CONTROL   0x43
@@ -25,6 +26,8 @@ void timer_init(uint32_t frequency) {
 
 void timer_interrupt_handler(void) {
     ticks++;
+
+    task_switch();
 }
 
 uint32_t timer_get_ticks(void) {

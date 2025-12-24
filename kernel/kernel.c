@@ -8,6 +8,8 @@
 #include "memory.h"
 #include "paging.h"
 #include "pmm.h"
+#include "task.h"
+#include "tasks_demo.h"
 
 #define INPUT_MAX 128
 
@@ -36,7 +38,7 @@ void kernel_main(void) {
 
     // Enable interrupts globally
     vga_print("[*] Enabling interrupts...\n");
-    asm volatile("sti");
+    // asm volatile("sti");
 
     vga_print("\n=== OASIS Ready ===\n");
     vga_print("Interrupts enabled\n\n");
@@ -50,7 +52,7 @@ void kernel_main(void) {
     uint32_t total_mem = memory_get_total_usable();
     vga_print("Total usable memory: ");
     char buf[16];
-    itoa(total_mem / 1024 / 11024, buf, 10);
+    itoa(total_mem / 1024 / 1024, buf, 10);
     vga_print(buf);
     vga_print("MB\n\n");
 
@@ -58,9 +60,18 @@ void kernel_main(void) {
 
     paging_init();
     paging_enable();
+    asm volatile("sti");
 
     vga_print("\n[+] Memory system initialized");
 
+    vga_print("\n[*] Initializing task manager...\n");
+    task_init();
+
+    vga_print("[*] Creating tasks...\n");
+    task_create(task_idle);
+    task_create(task_worker);
+
+    vga_print("[+] Tasks created and ready\n");
 
     vga_print("Type 'help' for commands\n\n");
 
