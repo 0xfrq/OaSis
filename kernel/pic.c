@@ -11,7 +11,6 @@
 #define ICW4_8086 0x01
 
 void pic_init(void) {
-    // ICW1: Start initialization
     outb(PIC_MASTER_CMD, ICW1_INIT | ICW1_ICW4);
     outb(PIC_SLAVE_CMD, ICW1_INIT | ICW1_ICW4);
 

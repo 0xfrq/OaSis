@@ -6,7 +6,6 @@ static IDTPointer idt_ptr;
 
 extern void load_idt(void*);
 
-// External handlers from interrupt.asm - Exception handlers
 extern void isr_0(void);
 extern void isr_1(void);
 extern void isr_2(void);
@@ -40,7 +39,6 @@ extern void isr_29(void);
 extern void isr_30(void);
 extern void isr_31(void);
 
-// External handlers from interrupt.asm - IRQ handlers
 extern void irq_0(void);
 extern void irq_1(void);
 extern void irq_2(void);
@@ -70,7 +68,6 @@ void idt_init(void) {
     idt_ptr.limit = (sizeof(IDTEntry) * IDT_ENTRIES) - 1;
     idt_ptr.base = (uint32_t)&idt;
 
-    // Set exception handlers (interrupts 0-31)
     idt_set_entry(0, (uint32_t)isr_0, 0x08, 0x8E);
     idt_set_entry(1, (uint32_t)isr_1, 0x08, 0x8E);
     idt_set_entry(2, (uint32_t)isr_2, 0x08, 0x8E);
@@ -104,7 +101,6 @@ void idt_init(void) {
     idt_set_entry(30, (uint32_t)isr_30, 0x08, 0x8E);
     idt_set_entry(31, (uint32_t)isr_31, 0x08, 0x8E);
 
-    // Set IRQ handlers (interrupts 32-47)
     idt_set_entry(32, (uint32_t)irq_0, 0x08, 0x8E);
     idt_set_entry(33, (uint32_t)irq_1, 0x08, 0x8E);
     idt_set_entry(34, (uint32_t)irq_2, 0x08, 0x8E);
@@ -122,11 +118,9 @@ void idt_init(void) {
     idt_set_entry(46, (uint32_t)irq_14, 0x08, 0x8E);
     idt_set_entry(47, (uint32_t)irq_15, 0x08, 0x8E);
 
-    // Load IDT into CPU
     load_idt(&idt_ptr);
 }
 
-// Generic interrupt handler for CPU exceptions
 void interrupt_handler(int int_num, int err_code) {
     if (int_num < 32) {
         vga_print("Exception ");

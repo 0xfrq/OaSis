@@ -3,48 +3,45 @@
 
 #include <stdint.h>
 
-#define TASK_MAX 32
-#define TASK_STACK_SIZE 0x1000
+#define TASK_MAX 16
+#define TASK_STACK_SIZE 4096
 
 typedef enum {
-    TASK_READY = 0,
-    TASK_RUNNING = 1,
-    TASK_BLOCKED = 2,
-    TASK_DEAD = 3
+    TASK_READY,
+    TASK_RUNNING,
+    TASK_BLOCKED,
+    TASK_DEAD
 } task_state_t;
 
 typedef struct {
-    uint32_t edi;
-    uint32_t esi;
-    uint32_t ebp;
-    uint32_t esp;
-    uint32_t ebx;
-    uint32_t edx;
-    uint32_t ecx;
-    uint32_t eax;
+    uint32_t eax, ebx, ecx, edx;
+    uint32_t esi, edi, ebp, esp;
     uint32_t eip;
-    uint32_t cs;
     uint32_t eflags;
-} cpu_context_t;
+    uint32_t cs;
+    uint32_t cr3;
+} task_context_t;
 
-
-typedef struct task {
+typedef struct task_t {
     uint32_t id;
     task_state_t state;
-    cpu_context_t context;
+    task_context_t context;
     uint32_t *stack;
     uint32_t stack_base;
-    struct task *next;
-    struct task *prev;
+    struct task_t *next;
+    struct task_t *prev;
 } task_t;
 
+// Global current task pointer
+extern task_t *current_task;
+
+// Function declarations
 void task_init(void);
 task_t *task_create(void (*entry)(void));
 void task_yield(void);
 void task_switch(void);
 task_t *task_get_current(void);
+task_t *get_task_ptr(int id);
 void task_print_info(void);
 
-extern task_t *current_task;
-
-#endif
+#endif // TASK_H

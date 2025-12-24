@@ -18,18 +18,15 @@ static int read_pos = 0;
 static int write_pos = 0;
 
 void keyboard_init(void) {
-    // Keyboard will be handled by IRQ 1
 }
 
 void keyboard_interrupt_handler(void) {
     uint8_t scancode = inb(KEYBOARD_DATA);
 
-    // Ignore key releases (high bit set)
     if (scancode & 0x80) {
         return;
     }
 
-    // Convert scancode to ASCII
     char c = keymap[scancode];
     
     if (c != 0) {
@@ -40,9 +37,8 @@ void keyboard_interrupt_handler(void) {
 }
 
 char keyboard_getchar(void) {
-    // Wait for input
     while (read_pos == write_pos) {
-        asm("hlt");  // Sleep until interrupt
+        asm("hlt");  
     }
 
     char c = keyboard_buffer[read_pos];

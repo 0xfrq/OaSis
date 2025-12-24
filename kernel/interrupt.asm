@@ -5,6 +5,8 @@
 [EXTERN interrupt_handler]
 [EXTERN timer_interrupt_handler]
 [EXTERN keyboard_interrupt_handler]
+[EXTERN current_task]
+[EXTERN task_switch]
 
 ; Macro for CPU exceptions (no error code)
 %macro ISR_NOERRCODE 1
@@ -95,7 +97,9 @@ irq_0:
     mov es, ax
     mov fs, ax
     mov gs, ax
+    
     call timer_interrupt_handler
+    
     mov al, 0x20
     out 0x20, al             ; EOI to master PIC
     pop eax
@@ -106,6 +110,7 @@ irq_0:
     popa
     sti
     iret
+
 
 [GLOBAL irq_1]
 irq_1:
