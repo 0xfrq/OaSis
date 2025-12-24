@@ -166,6 +166,33 @@ STUB_IRQ 13
 STUB_IRQ 14
 STUB_IRQ 15
 
+
+; System call hamdler (intx80)
+
+[EXTERN int_80_handler]
+[GLOBAL int_80_wrapper]
+int_80_wrapper:
+    cli
+    pusha
+    mov edx, ecx
+    mov ecx, ebx
+    mov ebx, eax
+    
+    push edx
+    push ecx
+    push ebx
+    push eax
+
+    call int_80_handler
+
+    add esp, 16
+
+    mov [esp+28], eax
+
+    popa
+    sti
+    iret
+
 ; Load IDT function
 [GLOBAL load_idt]
 load_idt:
