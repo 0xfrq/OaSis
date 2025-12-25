@@ -1,5 +1,6 @@
 #include "idt.h"
 #include "vga.h"
+#include "string.h"
 
 static IDTEntry idt[IDT_ENTRIES];
 static IDTPointer idt_ptr;

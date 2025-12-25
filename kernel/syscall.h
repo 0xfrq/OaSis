@@ -27,7 +27,12 @@
 #define SYSCALL_SEEK    16
 #define SYSCALL_FDINFO  17   /* Debug: print fd table */
 
-#define SYSCALL_MAX     18
+/* Day 11: Block Device Abstraction */
+#define SYSCALL_BLOCK_READ   18
+#define SYSCALL_BLOCK_WRITE  19
+#define SYSCALL_BLOCK_FLUSH  20
+
+#define SYSCALL_MAX     21
 
 void syscall_init(void);
 
@@ -223,6 +228,33 @@ static inline int sys_seek(int fd, int32_t offset, int whence) {
 /* Debug: print fd table */
 static inline void sys_fdinfo(void) {
     register uint32_t eax asm("eax") = SYSCALL_FDINFO;
+    
+    asm volatile("int $0x80" : "+r"(eax));
+}
+
+/* Day 11: Block Device Abstraction */
+static inline int sys_block_read(uint32_t block_num, void *buffer) {
+    register uint32_t eax asm("eax") = SYSCALL_BLOCK_READ;
+    register uint32_t ebx asm("ebx") = block_num;
+    register uint32_t ecx asm("ecx") = (uint32_t)buffer;
+    
+    asm volatile("int $0x80" : "+r"(eax) : "r"(ebx), "r"(ecx));
+    
+    return (int)eax;
+}
+
+static inline int sys_block_write(uint32_t block_num, const void *buffer) {
+    register uint32_t eax asm("eax") = SYSCALL_BLOCK_WRITE;
+    register uint32_t ebx asm("ebx") = block_num;
+    register uint32_t ecx asm("ecx") = (uint32_t)buffer;
+    
+    asm volatile("int $0x80" : "+r"(eax) : "r"(ebx), "r"(ecx));
+    
+    return (int)eax;
+}
+
+static inline void sys_block_flush(void) {
+    register uint32_t eax asm("eax") = SYSCALL_BLOCK_FLUSH;
     
     asm volatile("int $0x80" : "+r"(eax));
 }

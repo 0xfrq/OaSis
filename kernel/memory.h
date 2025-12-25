@@ -24,7 +24,7 @@ typedef struct {
 extern e820_map_t e820_map;
 
 void memory_init(void);
-uint32_t memory_get_total_sable(void);
+uint32_t memory_get_total_usable(void);
 void memory_print_map(void);
 
 #endif

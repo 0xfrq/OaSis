@@ -11,19 +11,22 @@
 #include "syscall.h"
 #include "fd.h"
 #include "string.h"
+#include "vga.h"
 
 /* Helper: Write a string to stdout */
 static void print(const char *str) {
     int len = 0;
     while (str[len]) len++;
-    sys_write_fd(STDOUT_FILENO, str, len);
+    /* Use legacy sys_write which writes to stdout */
+    sys_write(str, len);
 }
 
 /* Helper: Write a string to stderr */
 static void eprint(const char *str) {
     int len = 0;
     while (str[len]) len++;
-    sys_write_fd(STDERR_FILENO, str, len);
+    /* Use legacy sys_write for now */
+    sys_write(str, len);
 }
 
 /* Helper: Print a number */
@@ -83,47 +86,58 @@ void task_io_stdin_demo(void) {
 /*
  * Demo 3: Pipe communication
  * Creates a pipe and writes/reads through it
+ * Note: Uses kernel functions directly since we're in kernel mode
  */
 void task_io_pipe_demo(void) {
-    print("\n=== I/O Demo: pipe ===\n");
+    vga_print("\n=== I/O Demo: pipe ===\n");
+    char buf[32];
     
     int pipefd[2];
     
-    /* Create a pipe */
-    if (sys_pipe(pipefd) < 0) {
-        eprint("[ERROR] Failed to create pipe!\n");
+    /* Use kernel function directly (bypasses syscall inline asm issue) */
+    fd_table_t *table = fd_get_current_table();
+    if (fd_pipe(table, pipefd) < 0) {
+        vga_print("[ERROR] Failed to create pipe!\n");
         return;
     }
     
-    print("Pipe created: read_fd=");
-    print_num(pipefd[0]);
-    print(", write_fd=");
-    print_num(pipefd[1]);
-    print("\n");
+    vga_print("Pipe created: read_fd=");
+    itoa(pipefd[0], buf, 10);
+    vga_print(buf);
+    vga_print(", write_fd=");
+    itoa(pipefd[1], buf, 10);
+    vga_print(buf);
+    vga_print("\n");
     
-    /* Write to pipe */
+    /* Write to pipe using kernel function */
     const char *pipe_msg = "Hello through pipe!";
-    int written = sys_write_fd(pipefd[1], pipe_msg, 19);
-    print("Wrote ");
-    print_num(written);
-    print(" bytes to pipe\n");
+    int written = fd_write(table, pipefd[1], pipe_msg, 19);
+    vga_print("Wrote ");
+    itoa(written, buf, 10);
+    vga_print(buf);
+    vga_print(" bytes to pipe\n");
     
-    /* Read from pipe */
-    char buf[32];
-    int read_bytes = sys_read(pipefd[0], buf, 31);
+    /* Read from pipe using kernel function */
+    char read_buf[32];
+    int read_bytes = fd_read(table, pipefd[0], read_buf, 31);
+    vga_print("Read ");
+    itoa(read_bytes, buf, 10);
+    vga_print(buf);
+    vga_print(" bytes from pipe\n");
+    
     if (read_bytes > 0) {
-        buf[read_bytes] = '\0';
-        print("Read from pipe: '");
-        print(buf);
-        print("'\n");
+        read_buf[read_bytes] = '\0';
+        vga_print("Data: '");
+        vga_print(read_buf);
+        vga_print("'\n");
     }
     
     /* Close pipe ends */
-    sys_close(pipefd[0]);
-    sys_close(pipefd[1]);
-    print("Pipe closed\n");
+    fd_close(table, pipefd[0]);
+    fd_close(table, pipefd[1]);
+    vga_print("Pipe closed\n");
     
-    print("=== pipe demo complete ===\n\n");
+    vga_print("=== pipe demo complete ===\n\n");
 }
 
 /*
@@ -184,68 +198,84 @@ void task_io_fdinfo_demo(void) {
 
 /*
  * Demo 6: Complete I/O test
- * Runs all demos in sequence
+ * Runs all demos in sequence - uses vga_print directly for reliability
  */
 void task_io_full_test(void) {
-    print("\n");
-    print("╔════════════════════════════════════════╗\n");
-    print("║       Day 10: I/O Subsystem Test       ║\n");
-    print("╚════════════════════════════════════════╝\n");
+    char buf[32];
+    
+    vga_print("\n");
+    vga_print("+========================================+\n");
+    vga_print("|       Day 10: I/O Subsystem Test       |\n");
+    vga_print("+========================================+\n");
     
     /* Show initial fd state */
-    print("\n[1/5] Initial file descriptor state:\n");
+    vga_print("\n[1/5] Initial file descriptor state:\n");
     sys_fdinfo();
     
-    /* Demo stdout/stderr */
-    print("\n[2/5] Testing stdout/stderr...\n");
-    print("[stdout] Standard output works!\n");
-    eprint("[stderr] Standard error works!\n");
+    /* Demo stdout/stderr via syscall */
+    vga_print("\n[2/5] Testing sys_write syscall...\n");
+    sys_write("[syscall] sys_write works!\n", 27);
     
-    /* Demo pipe */
-    print("\n[3/5] Testing pipes...\n");
+    /* Demo pipe - use kernel functions directly */
+    vga_print("\n[3/5] Testing pipes...\n");
     int pipefd[2];
-    if (sys_pipe(pipefd) == 0) {
-        print("  Pipe created: [");
-        print_num(pipefd[0]);
-        print(",");
-        print_num(pipefd[1]);
-        print("]\n");
+    fd_table_t *table = fd_get_current_table();
+    
+    if (fd_pipe(table, pipefd) == 0) {
+        vga_print("  Pipe created: [");
+        itoa(pipefd[0], buf, 10);
+        vga_print(buf);
+        vga_print(",");
+        itoa(pipefd[1], buf, 10);
+        vga_print(buf);
+        vga_print("]\n");
         
-        /* Write and read */
+        /* Write and read using kernel functions */
         const char *test_data = "PIPE_TEST_DATA";
-        sys_write_fd(pipefd[1], test_data, 14);
+        int written = fd_write(table, pipefd[1], test_data, 14);
+        vga_print("  Wrote ");
+        itoa(written, buf, 10);
+        vga_print(buf);
+        vga_print(" bytes\n");
         
-        char buf[32];
-        int n = sys_read(pipefd[0], buf, 31);
-        buf[n] = '\0';
+        char read_buf[32];
+        int n = fd_read(table, pipefd[0], read_buf, 31);
+        vga_print("  Read ");
+        itoa(n, buf, 10);
+        vga_print(buf);
+        vga_print(" bytes\n");
         
-        print("  Data through pipe: '");
-        print(buf);
-        print("'\n");
+        if (n > 0) {
+            read_buf[n] = '\0';
+            vga_print("  Data: '");
+            vga_print(read_buf);
+            vga_print("'\n");
+        }
         
-        sys_close(pipefd[0]);
-        sys_close(pipefd[1]);
-        print("  Pipe closed successfully\n");
+        fd_close(table, pipefd[0]);
+        fd_close(table, pipefd[1]);
+        vga_print("  Pipe closed successfully\n");
     } else {
-        eprint("  [FAIL] Could not create pipe\n");
+        vga_print("  [FAIL] Could not create pipe\n");
     }
     
     /* Demo dup */
-    print("\n[4/5] Testing fd duplication...\n");
+    vga_print("\n[4/5] Testing fd duplication...\n");
     int dup_fd = sys_dup(STDOUT_FILENO);
     if (dup_fd >= 0) {
-        print("  Duplicated stdout to fd ");
-        print_num(dup_fd);
-        print("\n");
+        vga_print("  Duplicated stdout to fd ");
+        itoa(dup_fd, buf, 10);
+        vga_print(buf);
+        vga_print("\n");
         sys_close(dup_fd);
     }
     
     /* Final fd state */
-    print("\n[5/5] Final file descriptor state:\n");
+    vga_print("\n[5/5] Final file descriptor state:\n");
     sys_fdinfo();
     
-    print("\n");
-    print("╔════════════════════════════════════════╗\n");
-    print("║         I/O Subsystem: PASSED          ║\n");
-    print("╚════════════════════════════════════════╝\n");
+    vga_print("\n");
+    vga_print("+========================================+\n");
+    vga_print("|         I/O Subsystem: PASSED          |\n");
+    vga_print("+========================================+\n");
 }

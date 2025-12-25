@@ -287,13 +287,13 @@ int fd_read(fd_table_t *table, int fd, void *buf, uint32_t count) {
             pipe_t *pipe = entry->data.pipe;
             if (!pipe) return -1;
             
-            /* Wait for data or EOF (writers closed) */
-            while (pipe->count == 0) {
+            /* Non-blocking: if no data, return 0 instead of waiting forever */
+            if (pipe->count == 0) {
                 if (pipe->writers == 0) {
                     return 0;  /* EOF - no more writers */
                 }
-                /* In a real OS, we'd block here. For now, busy wait */
-                /* Could call task_yield() to allow other tasks to run */
+                /* No data available yet - return 0 (would block) */
+                return 0;
             }
             
             /* Read from pipe buffer */

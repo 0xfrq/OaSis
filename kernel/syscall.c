@@ -4,6 +4,7 @@
 #include "idt.h"
 #include "string.h"
 #include "fd.h"
+#include "block.h"
 #include <stddef.h>
 
 extern uint32_t syscall_write(const char *msg, uint32_t len);
@@ -139,7 +140,21 @@ uint32_t syscall_fdinfo(void) {
     fd_print_table(table);
     return 0;
 }
+/* Day 11: Block Device Abstraction */
+uint32_t syscall_block_read(uint32_t block_num, void *buffer) {
+    if (!buffer) return -1;
+    return block_read(block_num, (uint8_t *)buffer);
+}
 
+uint32_t syscall_block_write(uint32_t block_num, const void *buffer) {
+    if (!buffer) return -1;
+    return block_write(block_num, (const uint8_t *)buffer);
+}
+
+uint32_t syscall_block_flush(void) {
+    block_flush();
+    return 0;
+}
 uint32_t syscall_dispatch(uint32_t syscall_num, uint32_t arg1, uint32_t arg2, uint32_t arg3) {
     switch (syscall_num) {
         /* Day 8: Basic syscalls */
@@ -198,6 +213,16 @@ uint32_t syscall_dispatch(uint32_t syscall_num, uint32_t arg1, uint32_t arg2, ui
         
         case SYSCALL_FDINFO:
             return syscall_fdinfo();
+        
+        /* Day 11: Block Device Abstraction */
+        case SYSCALL_BLOCK_READ:
+            return syscall_block_read(arg1, (void *)arg2);
+        
+        case SYSCALL_BLOCK_WRITE:
+            return syscall_block_write(arg1, (const void *)arg2);
+        
+        case SYSCALL_BLOCK_FLUSH:
+            return syscall_block_flush();
         
         default:
             return syscall_invalid();
