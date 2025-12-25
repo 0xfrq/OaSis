@@ -61,6 +61,25 @@ uint32_t syscall_getpid(void) {
     return 0;
 }
 
+uint32_t syscall_fork(void) {
+    task_t *child = task_fork();
+    if (child == NULL)
+    {
+        return 0xFFFFFFFF;
+    }
+    return child->id;
+}
+
+
+uint32_t syscall_exec(const char *program, uint32_t size) {
+    task_exec(program, size);
+    return 0;
+}
+
+uint32_t syscall_wait(int *status) {
+    return task_wait(status);
+}
+
 uint32_t syscall_dispatch(uint32_t syscall_num, uint32_t arg1, uint32_t arg2, uint32_t arg3) {
     (void)arg3;  
     
@@ -79,6 +98,15 @@ uint32_t syscall_dispatch(uint32_t syscall_num, uint32_t arg1, uint32_t arg2, ui
         
         case SYSCALL_GETPID:
             return syscall_getpid();
+        
+        case SYSCALL_FORK:
+            return syscall_fork();
+
+        case SYSCALL_EXEC:
+            return syscall_exec((const char *)arg1, arg2);
+
+        case SYSCALL_WAIT:
+            return syscall_wait((int *)arg1);
         
         default:
             return syscall_invalid();

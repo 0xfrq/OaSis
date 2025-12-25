@@ -41,7 +41,10 @@ task_t *task_create(void (*entry)(void)) {
     task_t *task = &tasks[task_count];
     task->id = ++current_task_id;
     task->state = TASK_READY;
-    
+    task->ppid = 0;
+    task->exit_code = 0;
+    task->parent = NULL;
+    task->child_first = NULL;    
     // For now, skip physical memory allocation - just use a simple virtual address
     // In production, would use pmm_alloc_page() and page_map()
     uint32_t stack_virt = 0x10000 + (task_count * TASK_STACK_SIZE);
@@ -163,4 +166,107 @@ void task_print_info(void) {
         vga_print(buf);
         vga_print("\n");
     }
+}
+
+
+task_t *get_next_task(void) {
+    if (task_count == 0) return NULL;
+    if (task_count == 1) return current_task;
+
+    if(current_task == NULL) {
+        current_task = &tasks[0];
+    } else {
+        if(current_task->next != NULL) {
+            current_task =current_task->next;
+        } else {
+            current_task = &tasks[0];
+        }
+    }
+    if(current_task != NULL) {
+        current_task->state = TASK_RUNNING;
+    }
+
+    return current_task;
+}
+
+int task_fork(void) {
+    if (task_count >= TASK_MAX) {
+        return -1;
+    }
+
+    task_t *parent = current_task;
+    if(parent == NULL) return -1;
+
+    task_t *child = &tasks[task_count];
+    child->id = ++current_task_id;
+    child->state = TASK_READY;
+    child->ppid = parent->id;
+    child->exit_code = 0;
+    child->parent = parent;
+    child->child_first = NULL;
+
+    child->context = parent->context;
+
+    child->stack_base = 0x10000 + (task_count * TASK_STACK_SIZE);
+    child->stack = (uint32_t *)child->stack_base;
+    child->context.esp = child->stack_base + TASK_STACK_SIZE - 4;
+
+    if(task_count>0) {
+        tasks[task_count - 1].next = child;
+        child->prev = &tasks[task_count- 1];
+    }
+    child->next = &tasks[0];
+
+    task_count++;
+
+    return child->id;
+}
+
+int task_exec(const char *program, uint32_t size) {
+    if (current_task == NULL) return -1;
+    
+    (void)program;
+    (void)size;
+    
+    current_task->context.esp = current_task->stack_base + TASK_STACK_SIZE - 4;
+    current_task->context.ebp = current_task->context.esp;
+    
+    current_task->context.eax = 0;
+    current_task->context.ebx = 0;
+    current_task->context.ecx = 0;
+    current_task->context.edx = 0;
+    current_task->context.esi = 0;
+    current_task->context.edi = 0;
+    
+    return 0;
+}
+
+// Exec program: alias for task_exec
+void task_exec_program(const char *program, uint32_t size) {
+    task_exec(program, size);
+}
+int task_wait(int *status) {
+    if(current_task == NULL) return -1;
+
+    task_t *child = NULL;
+    for(int i=0; i<task_count; i++) {
+        if (tasks[i].ppid == current_task->id && tasks[i].state != TASK_DEAD) {
+            child = &tasks[i];
+            break;
+        }
+    }
+
+    if(child == NULL) return -1;
+
+    if (status != NULL) {
+        *status = child->exit_code;
+    }
+
+    return child->id;  
+
+}
+
+int task_get_parent_id(void) {
+    if(current_task == NULL) return -1;
+    return current_task->ppid;
 }

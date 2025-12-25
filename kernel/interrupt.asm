@@ -99,7 +99,10 @@ irq_0:
     mov gs, ax
     
     call timer_interrupt_handler
-    
+    cmp eax, 0
+    je .no_switch
+
+.no_switch:    
     mov al, 0x20
     out 0x20, al             ; EOI to master PIC
     pop eax

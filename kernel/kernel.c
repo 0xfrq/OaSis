@@ -12,10 +12,7 @@
 #include "tasks_demo.h"
 #include "syscall.h"
 
-
 #define INPUT_MAX 128
-
-
 
 void kernel_main(void) {
     vga_clear();
@@ -77,12 +74,9 @@ void kernel_main(void) {
     task_create(task_worker);
     vga_print("[DEBUG] Returned from second task_create\n");
 
-
-
     vga_print("[+] Tasks created and ready\n");
     vga_print("[*] Tasks managed by scheduler (timer-driven)\n");
     vga_print("Type 'help' for commands\n\n");
-
 
     char input[INPUT_MAX];
     int index = 0;
@@ -100,11 +94,12 @@ void kernel_main(void) {
 
             if(strcmp(input, "help") == 0) {
                 vga_print("Commands:\n");
-                vga_print("  help    - show this message\n");
-                vga_print("  clear   - clear screen\n");
-                vga_print("  uptime  - show system uptime\n");
-                vga_print("  meminfo - show memory info\n");
-                vga_print("  taskinfo - show task info\n");
+                vga_print("  help      - show this message\n");
+                vga_print("  clear     - clear screen\n");
+                vga_print("  uptime    - show system uptime\n");
+                vga_print("  meminfo   - show memory info\n");
+                vga_print("  taskinfo  - show task info\n");
+                vga_print("  runtasks - execute all tasks\n");
             } else if (strcmp(input, "clear") == 0) {
                 vga_clear();
             } else if (strcmp(input, "uptime") == 0) {
@@ -143,6 +138,44 @@ void kernel_main(void) {
                 vga_print(" MB\n");
             } else if (strcmp(input, "taskinfo") == 0) {
                 task_print_info();
+            } else if (strcmp(input, "runtasks") == 0) {
+                vga_print("\n[*] Executing tasks...\n");
+                
+                task_t *task1 = get_task_ptr(0);
+                if (task1 && task1->id != 0) {
+                    vga_print("[*] Running Task ");
+                    char buf[16];
+                    itoa(task1->id, buf, 10);
+                    vga_print(buf);
+                    vga_print(":\n");
+                    
+                    void (*entry_func)(void) = (void (*)(void))task1->context.eip;
+                    entry_func();
+                    
+                    vga_print("\n[+] Task ");
+                    itoa(task1->id, buf, 10);
+                    vga_print(buf);
+                    vga_print(" completed\n\n");
+                }
+                
+                task_t *task2 = get_task_ptr(1);
+                if (task2 && task2->id != 0) {
+                    vga_print("[*] Running Task ");
+                    char buf[16];
+                    itoa(task2->id, buf, 10);
+                    vga_print(buf);
+                    vga_print(":\n");
+                    
+                    void (*entry_func)(void) = (void (*)(void))task2->context.eip;
+                    entry_func();
+                    
+                    vga_print("\n[+] Task ");
+                    itoa(task2->id, buf, 10);
+                    vga_print(buf);
+                    vga_print(" completed\n\n");
+                }
+                
+                vga_print("[+] All tasks completed\n");
             } else if (index != 0) {
                 vga_print("unknown command, nulis yang bener\n");
             }

@@ -8,7 +8,10 @@
 #define SYSCALL_YIELD   2
 #define SYSCALL_EXIT    3
 #define SYSCALL_GETPID  4
-#define SYSCALL_MAX     5
+#define SYSCALL_FORK     5
+#define SYSCALL_EXEC    6
+#define SYSCALL_WAIT    7
+#define SYSCALL_MAX     8
 
 void syscall_init(void);
 
@@ -73,6 +76,33 @@ static inline uint32_t sys_getpid(void) {
     );
     
     return eax;
+}
+
+static inline int sys_fork(void) {
+    register uint32_t eax asm("eax") = SYSCALL_FORK;
+
+    asm volatile("int $0x80" : "+r"(eax));
+
+    return (int)eax;
+}
+
+static inline int sys_exec(const char *program_ptr, uint32_t size) {
+    register uint32_t eax asm("eax") = SYSCALL_EXEC;
+    register uint32_t ebx asm("ebx") = (uint32_t)program_ptr;
+    register uint32_t ecx asm("ecx") = size;
+
+    asm volatile("int $0x80" : "+r"(eax) : "r"(ebx), "r"(ecx));
+    
+    return (int)eax;
+}
+
+static inline int sys_wait(int *status) {
+    register uint32_t eax asm("eax") = SYSCALL_WAIT;
+    register uint32_t ebx asm("ebx") = (uint32_t)status;
+
+    asm volatile("int $0x80" : "+r"(eax) : "r"(ebx));
+
+    return (int)eax;
 }
 
 #endif

@@ -24,10 +24,15 @@ typedef struct {
 
 typedef struct task_t {
     uint32_t id;
+    uint32_t ppid;
     task_state_t state;
+    int exit_code;
     task_context_t context;
     uint32_t *stack;
     uint32_t stack_base;
+    struct task *parent;
+    struct task *child_first;
+    struct task *sibling_next;
     struct task_t *next;
     struct task_t *prev;
 } task_t;
@@ -43,5 +48,11 @@ void task_switch(void);
 task_t *task_get_current(void);
 task_t *get_task_ptr(int id);
 void task_print_info(void);
+
+int task_fork(void);
+int task_exec(const char *program, uint32_t size);
+int task_wait(int *status);
+task_t *task_find_child(task_t *parent);
+void task_exit(int code);
 
 #endif // TASK_H
