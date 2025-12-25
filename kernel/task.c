@@ -3,6 +3,7 @@
 #include "string.h"
 #include "pmm.h"
 #include "paging.h"
+#include "fd.h"
 #include <stddef.h>
 
 // Global task array
@@ -10,6 +11,9 @@ task_t tasks[TASK_MAX];
 static int task_count = 0;
 static int current_task_id = 0;
 task_t *current_task = NULL;
+
+/* Per-task file descriptor tables (static allocation for simplicity) */
+static fd_table_t task_fd_tables[TASK_MAX];
 
 void task_init(void) {
     vga_print("[*] Initializing task manager...\n");
@@ -19,6 +23,7 @@ void task_init(void) {
         tasks[i].state = TASK_DEAD;
         tasks[i].next = NULL;
         tasks[i].prev = NULL;
+        tasks[i].fd_table = NULL;
     }
     
     vga_print("[+] Task manager initialized\n");
@@ -44,7 +49,12 @@ task_t *task_create(void (*entry)(void)) {
     task->ppid = 0;
     task->exit_code = 0;
     task->parent = NULL;
-    task->child_first = NULL;    
+    task->child_first = NULL;
+    
+    /* Day 10: Initialize file descriptor table */
+    task->fd_table = &task_fd_tables[task_count];
+    fd_table_init(task->fd_table);
+    
     // For now, skip physical memory allocation - just use a simple virtual address
     // In production, would use pmm_alloc_page() and page_map()
     uint32_t stack_virt = 0x10000 + (task_count * TASK_STACK_SIZE);
@@ -210,6 +220,14 @@ int task_fork(void) {
     child->stack_base = 0x10000 + (task_count * TASK_STACK_SIZE);
     child->stack = (uint32_t *)child->stack_base;
     child->context.esp = child->stack_base + TASK_STACK_SIZE - 4;
+
+    /* Day 10: Copy parent's file descriptor table to child */
+    child->fd_table = &task_fd_tables[task_count];
+    if (parent->fd_table) {
+        fd_table_copy(child->fd_table, parent->fd_table);
+    } else {
+        fd_table_init(child->fd_table);
+    }
 
     if(task_count>0) {
         tasks[task_count - 1].next = child;

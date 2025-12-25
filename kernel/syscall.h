@@ -3,15 +3,31 @@
 
 #include <stdint.h>
 
+/* Day 8: Basic syscalls */
 #define SYSCALL_WRITE   0
 #define SYSCALL_SLEEP   1
 #define SYSCALL_YIELD   2
 #define SYSCALL_EXIT    3
 #define SYSCALL_GETPID  4
-#define SYSCALL_FORK     5
+
+/* Day 9: Process management */
+#define SYSCALL_FORK    5
 #define SYSCALL_EXEC    6
 #define SYSCALL_WAIT    7
-#define SYSCALL_MAX     8
+#define SYSCALL_GETPPID 8
+
+/* Day 10: I/O Subsystem */
+#define SYSCALL_OPEN    9
+#define SYSCALL_CLOSE   10
+#define SYSCALL_READ    11
+#define SYSCALL_WRITE_FD 12  /* Write with fd parameter */
+#define SYSCALL_PIPE    13
+#define SYSCALL_DUP     14
+#define SYSCALL_DUP2    15
+#define SYSCALL_SEEK    16
+#define SYSCALL_FDINFO  17   /* Debug: print fd table */
+
+#define SYSCALL_MAX     18
 
 void syscall_init(void);
 
@@ -103,6 +119,112 @@ static inline int sys_wait(int *status) {
     asm volatile("int $0x80" : "+r"(eax) : "r"(ebx));
 
     return (int)eax;
+}
+
+/* Get parent PID */
+static inline int sys_getppid(void) {
+    register uint32_t eax asm("eax") = SYSCALL_GETPPID;
+    
+    asm volatile("int $0x80" : "+r"(eax));
+    
+    return (int)eax;
+}
+
+/* ====== Day 10: I/O System Calls ====== */
+
+/* Open a file/device */
+static inline int sys_open(const char *path, int flags) {
+    register uint32_t eax asm("eax") = SYSCALL_OPEN;
+    register uint32_t ebx asm("ebx") = (uint32_t)path;
+    register uint32_t ecx asm("ecx") = (uint32_t)flags;
+    
+    asm volatile("int $0x80" : "+r"(eax) : "r"(ebx), "r"(ecx) : "memory");
+    
+    return (int)eax;
+}
+
+/* Close a file descriptor */
+static inline int sys_close(int fd) {
+    register uint32_t eax asm("eax") = SYSCALL_CLOSE;
+    register uint32_t ebx asm("ebx") = (uint32_t)fd;
+    
+    asm volatile("int $0x80" : "+r"(eax) : "r"(ebx));
+    
+    return (int)eax;
+}
+
+/* Read from a file descriptor */
+static inline int sys_read(int fd, void *buf, uint32_t count) {
+    register uint32_t eax asm("eax") = SYSCALL_READ;
+    register uint32_t ebx asm("ebx") = (uint32_t)fd;
+    register uint32_t ecx asm("ecx") = (uint32_t)buf;
+    register uint32_t edx asm("edx") = count;
+    
+    asm volatile("int $0x80" : "+r"(eax) : "r"(ebx), "r"(ecx), "r"(edx) : "memory");
+    
+    return (int)eax;
+}
+
+/* Write to a file descriptor (new fd-based write) */
+static inline int sys_write_fd(int fd, const void *buf, uint32_t count) {
+    register uint32_t eax asm("eax") = SYSCALL_WRITE_FD;
+    register uint32_t ebx asm("ebx") = (uint32_t)fd;
+    register uint32_t ecx asm("ecx") = (uint32_t)buf;
+    register uint32_t edx asm("edx") = count;
+    
+    asm volatile("int $0x80" : "+r"(eax) : "r"(ebx), "r"(ecx), "r"(edx) : "memory");
+    
+    return (int)eax;
+}
+
+/* Create a pipe */
+static inline int sys_pipe(int pipefd[2]) {
+    register uint32_t eax asm("eax") = SYSCALL_PIPE;
+    register uint32_t ebx asm("ebx") = (uint32_t)pipefd;
+    
+    asm volatile("int $0x80" : "+r"(eax) : "r"(ebx) : "memory");
+    
+    return (int)eax;
+}
+
+/* Duplicate a file descriptor */
+static inline int sys_dup(int oldfd) {
+    register uint32_t eax asm("eax") = SYSCALL_DUP;
+    register uint32_t ebx asm("ebx") = (uint32_t)oldfd;
+    
+    asm volatile("int $0x80" : "+r"(eax) : "r"(ebx));
+    
+    return (int)eax;
+}
+
+/* Duplicate a file descriptor to specific fd */
+static inline int sys_dup2(int oldfd, int newfd) {
+    register uint32_t eax asm("eax") = SYSCALL_DUP2;
+    register uint32_t ebx asm("ebx") = (uint32_t)oldfd;
+    register uint32_t ecx asm("ecx") = (uint32_t)newfd;
+    
+    asm volatile("int $0x80" : "+r"(eax) : "r"(ebx), "r"(ecx));
+    
+    return (int)eax;
+}
+
+/* Seek within a file descriptor */
+static inline int sys_seek(int fd, int32_t offset, int whence) {
+    register uint32_t eax asm("eax") = SYSCALL_SEEK;
+    register uint32_t ebx asm("ebx") = (uint32_t)fd;
+    register uint32_t ecx asm("ecx") = (uint32_t)offset;
+    register uint32_t edx asm("edx") = (uint32_t)whence;
+    
+    asm volatile("int $0x80" : "+r"(eax) : "r"(ebx), "r"(ecx), "r"(edx));
+    
+    return (int)eax;
+}
+
+/* Debug: print fd table */
+static inline void sys_fdinfo(void) {
+    register uint32_t eax asm("eax") = SYSCALL_FDINFO;
+    
+    asm volatile("int $0x80" : "+r"(eax));
 }
 
 #endif

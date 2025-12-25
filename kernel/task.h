@@ -6,6 +6,9 @@
 #define TASK_MAX 16
 #define TASK_STACK_SIZE 4096
 
+/* Forward declaration for fd_table_t */
+typedef struct fd_table fd_table_t;
+
 typedef enum {
     TASK_READY,
     TASK_RUNNING,
@@ -35,6 +38,7 @@ typedef struct task_t {
     struct task *sibling_next;
     struct task_t *next;
     struct task_t *prev;
+    fd_table_t *fd_table;       /* Day 10: Per-process file descriptor table */
 } task_t;
 
 // Global current task pointer

@@ -13,7 +13,7 @@ CFLAGS=-m32 \
 LDFLAGS=-m elf_i386
 
 ASM_SOURCES = boot/entry.asm kernel/interrupt.asm
-C_SOURCES = kernel/kernel.c kernel/vga.c kernel/keyboard.c kernel/io.c kernel/string.c kernel/idt.c kernel/pic.c kernel/timer.c kernel/memory.c kernel/paging.c kernel/pmm.c kernel/task.c kernel/tasks_demo.c kernel/syscall.c
+C_SOURCES = kernel/kernel.c kernel/vga.c kernel/keyboard.c kernel/io.c kernel/string.c kernel/idt.c kernel/pic.c kernel/timer.c kernel/memory.c kernel/paging.c kernel/pmm.c kernel/task.c kernel/tasks_demo.c kernel/syscall.c kernel/fd.c kernel/tasks_io.c
 ASM_OBJ = $(ASM_SOURCES:.asm=.o)
 C_OBJ = $(C_SOURCES:.c=.o)
 OBJ = $(ASM_OBJ) $(C_OBJ)

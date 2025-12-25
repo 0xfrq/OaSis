@@ -11,6 +11,8 @@
 #include "task.h"
 #include "tasks_demo.h"
 #include "syscall.h"
+#include "fd.h"
+#include "tasks_io.h"
 
 #define INPUT_MAX 128
 
@@ -62,6 +64,9 @@ void kernel_main(void) {
     vga_print("\n[*] Initializing task manager...\n");
     task_init();
 
+    vga_print("\n[*] Initializing I/O subsystem...\n");
+    fd_init();
+
     vga_print("\n[*] Initializing system calls...\n");
     syscall_init();
 
@@ -99,7 +104,10 @@ void kernel_main(void) {
                 vga_print("  uptime    - show system uptime\n");
                 vga_print("  meminfo   - show memory info\n");
                 vga_print("  taskinfo  - show task info\n");
-                vga_print("  runtasks - execute all tasks\n");
+                vga_print("  runtasks  - execute all tasks\n");
+                vga_print("  iotest    - test I/O subsystem (Day 10)\n");
+                vga_print("  fdinfo    - show file descriptor table\n");
+                vga_print("  pipetest  - test pipe communication\n");
             } else if (strcmp(input, "clear") == 0) {
                 vga_clear();
             } else if (strcmp(input, "uptime") == 0) {
@@ -176,6 +184,16 @@ void kernel_main(void) {
                 }
                 
                 vga_print("[+] All tasks completed\n");
+            } else if (strcmp(input, "iotest") == 0) {
+                vga_print("\n[*] Running I/O Subsystem Tests (Day 10)...\n");
+                task_io_full_test();
+            } else if (strcmp(input, "fdinfo") == 0) {
+                vga_print("\n[*] File Descriptor Table:\n");
+                fd_table_t *table = fd_get_current_table();
+                fd_print_table(table);
+            } else if (strcmp(input, "pipetest") == 0) {
+                vga_print("\n[*] Running Pipe Test...\n");
+                task_io_pipe_demo();
             } else if (index != 0) {
                 vga_print("unknown command, nulis yang bener\n");
             }
