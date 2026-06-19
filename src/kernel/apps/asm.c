@@ -7,6 +7,14 @@
 #include "vfs.h"
 #include "io.h"
 #include "klibc.h"
+#include "usrlib.h"
+#include "syscall.h"
+
+/* syscall functions for extern sym table */
+extern uint32_t syscall_open(const char *path, int flags);
+extern uint32_t syscall_close(int fd);
+extern uint32_t syscall_read(int fd, void *buf, uint32_t count);
+extern uint32_t syscall_write_fd(int fd, const void *buf, uint32_t count);
 
 /* debug port QEMU (0xE9 hack), bisa di-capture lewat -debugcon */
 static void dbg_putc(char c) {
@@ -65,6 +73,21 @@ static const extern_sym_t extern_syms[] = {
     { "_free",     (void *)klibc_free     },
     { "_calloc",   (void *)klibc_calloc   },
     { "_realloc",  (void *)klibc_realloc  },
+
+    /* user space library (via syscall) */
+    { "_usr_printf",  (void *)usr_printf   },
+    { "_usr_puts",    (void *)usr_puts     },
+    { "_usr_putchar", (void *)usr_putchar  },
+    { "_usr_gets",    (void *)usr_gets     },
+    { "_usr_getchar", (void *)usr_getchar  },
+    { "_usr_malloc",  (void *)usr_malloc   },
+    { "_usr_free",    (void *)usr_free     },
+
+    /* syscall wrappers — biar occ bisa panggil syscall langsung */
+    { "_sys_open",    (void *)(unsigned long)syscall_open },
+    { "_sys_close",   (void *)(unsigned long)syscall_close},
+    { "_sys_read",    (void *)(unsigned long)syscall_read },
+    { "_sys_write_fd",(void *)(unsigned long)syscall_write_fd},
 
     /* kernel VGA (bonus, biar bisa dipanggil langsung) */
     { "_vga_print", (void *)vga_print     },
@@ -823,17 +846,24 @@ static int gen_push(char *ops) {
     trim(ops); str_lower(ops);
     int r = parse_reg(ops);
     if (r >= 0) {
-        /* push r32: 50+rd */
         emit((uint8_t)(0x50 + r));
         return 0;
     }
     uint32_t imm;
-    if (!parse_int(ops, &imm)) return -1;
+    if (!parse_int(ops, &imm)) {
+        /* Maybe label */
+        int target = find_label(ops);
+        if (target >= 0) {
+            emit(0x68); emit32(CODE_VIRT + target);
+            return 0;
+        }
+        add_patch(code_len + 1, 0, ops, 2);
+        emit(0x68); emit32(0);
+        return 0;
+    }
     if ((int32_t)imm >= -128 && (int32_t)imm <= 127) {
-        /* push imm8: 6A ib */
         emit(0x6A); emit((uint8_t)(int8_t)(int32_t)imm);
     } else {
-        /* push imm32: 68 id */
         emit(0x68); emit32(imm);
     }
     return 0;
@@ -1314,19 +1344,15 @@ int asm_assemble(const char *code, void **exec_addr) {
     if (code_len == 0) return 0;
 
     /* alokasi halaman fisik buat kode executable */
-    uint32_t phys = pmm_alloc_page();
-    if (phys == 0) {
-        vga_print("asm: gagal alokasi halaman memori\n");
-        return -1;
+    uint32_t pages = (code_len + 0xFFF) / 0x1000;
+    if (pages < 1) pages = 1;
+    if (pages > 4) pages = 4;
+    for (uint32_t pi = 0; pi < pages; pi++) {
+        uint32_t phys = pmm_alloc_page();
+        if (phys == 0) { vga_print("asm: gagal\n"); return -1; }
+        page_map(CODE_VIRT + pi * 0x1000, phys, PTE_PRESENT | PTE_WRITE | PTE_USER);
+        asm volatile("invlpg (%0)" : : "r"(CODE_VIRT + pi * 0x1000) : "memory");
     }
-
-    /* map ke virtual address */
-    page_map(CODE_VIRT, phys, PTE_PRESENT | PTE_WRITE | PTE_USER);
-
-    /* flush TLB SEBELUM akses halaman yang baru di-map */
-    asm volatile("invlpg (%0)" : : "r"(CODE_VIRT) : "memory");
-
-    /* salin kode mesin ke virtual address */
     uint8_t *dest = (uint8_t *)CODE_VIRT;
     memcpy(dest, code_buf, (uint32_t)code_len);
 

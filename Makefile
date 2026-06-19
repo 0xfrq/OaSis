@@ -35,8 +35,9 @@ SOURCES_LIB = src/kernel/lib/string.c \
               src/kernel/lib/codegen.c \
               src/kernel/lib/klibc.c \
               src/kernel/lib/heap.c \
-              src/kernel/lib/log.c
-
+              src/kernel/lib/heap.c \
+              src/kernel/lib/log.c \
+              src/kernel/lib/usrlib.c
 SOURCES_SYSCALL = src/kernel/syscall/syscall.c
 
 SOURCES_TASKS = src/kernel/tasks/task.c \

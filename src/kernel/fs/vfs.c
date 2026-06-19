@@ -445,7 +445,7 @@ int vfs_resolve_path(const char *path, uint32_t *inode_out) {
 
 int vfs_mkdir(const char *path) {
     char parent[MAX_PATH_LENGTH], name[MAX_FILENAME_LENGTH];
-    if (!path || !is_valid_filename(path)) { VFS_ERR("mkdir: invalid path"); return -1; }
+    if (!path || path[0] == 0) { VFS_ERR("mkdir: empty path"); return -1; }
     if (split_parent_child(path, parent, name) != 0) return -1;
     if (!is_valid_filename(name)) { VFS_ERR("mkdir: invalid name"); return -1; }
     uint32_t pino = 0;
@@ -480,7 +480,7 @@ int vfs_mkdir(const char *path) {
 
 int vfs_create(const char *path) {
     char parent[MAX_PATH_LENGTH], name[MAX_FILENAME_LENGTH];
-    if (!path || !is_valid_filename(path)) { VFS_ERR("create: invalid path"); return -1; }
+    if (!path || path[0] == 0) { VFS_ERR("create: empty path"); return -1; }
     if (split_parent_child(path, parent, name) != 0) { VFS_ERR("create: split fail"); return -1; }
     if (!is_valid_filename(name)) { VFS_ERR("create: invalid name"); return -1; }
 
@@ -822,36 +822,36 @@ int vfs_chdir(const char *path) {
     if (vfs.inodes[ino].type != INODE_TYPE_DIR) { VFS_ERR("chdir: not a dir"); return -1; }
     vfs.cwd.inode_number = ino;
 
-    /* Compute path string based on resolved inode */
-    if (ino == 0) {
+    /* Set path string */
+    if (str_eq(path, "/")) {
         str_copy(vfs.cwd.path, "/", MAX_PATH_LENGTH);
-    } else {
-        /* Reconstruct path by walking up to root */
-        inode_t *in = &vfs.inodes[ino];
-        char stack[MAX_PATH_LENGTH];
-        uint32_t sp = 0;
-
-        /* Walk up from current inode to root, collecting names */
-        uint32_t cur = ino;
-        while (cur != 0 && cur < MAX_INODES) {
-            inode_t *cin = &vfs.inodes[cur];
-            /* Push name onto stack */
-            uint32_t nlen = str_len(cin->name);
-            for (int k = (int)nlen - 1; k >= 0; k--) {
-                if (sp < MAX_PATH_LENGTH - 1) stack[sp++] = cin->name[k];
+    } else if (path[0] == '/') {
+        /* Absolute path: use directly */
+        str_copy(vfs.cwd.path, path, MAX_PATH_LENGTH);
+    } else if (str_eq(path, "..")) {
+        /* Parent: strip last component from current path */
+        uint32_t len = str_len(vfs.cwd.path);
+        if (len <= 1) {
+            str_copy(vfs.cwd.path, "/", MAX_PATH_LENGTH);
+        } else {
+            /* Find last '/' */
+            int last_slash = -1;
+            for (uint32_t i = 0; i < len - 1; i++) {
+                if (vfs.cwd.path[i] == '/') last_slash = (int)i;
             }
-            if (sp < MAX_PATH_LENGTH - 1) stack[sp++] = '/';
-            cur = cin->parent_inode;
-            if (cur == ino) break; /* prevent infinite loop */
+            if (last_slash > 0) {
+                vfs.cwd.path[last_slash] = 0;
+            } else {
+                str_copy(vfs.cwd.path, "/", MAX_PATH_LENGTH);
+            }
         }
-
-        /* Pop from stack to build path */
-        uint32_t pos = 0;
-        vfs.cwd.path[pos++] = '/';
-        for (int k = (int)sp - 2; k >= 0 && pos < MAX_PATH_LENGTH - 1; k--) {
-            vfs.cwd.path[pos++] = stack[k];
+    } else {
+        /* Relative path: append to current */
+        uint32_t clen = str_len(vfs.cwd.path);
+        if (clen > 0 && vfs.cwd.path[clen - 1] != '/') {
+            if (clen < MAX_PATH_LENGTH - 2) { vfs.cwd.path[clen] = '/'; vfs.cwd.path[clen+1] = 0; clen++; }
         }
-        vfs.cwd.path[pos] = 0;
+        str_copy(vfs.cwd.path + clen, path, MAX_PATH_LENGTH - clen);
     }
     return 0;
 }

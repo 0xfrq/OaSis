@@ -14,7 +14,7 @@
  * - Block Data: Block 64 ke atas, isinya file/direktori
  */
 
-#define VFS_MAGIC 0x0AF5
+#define VFS_MAGIC 0x0AF6
 
 #define MAX_INODES 1024
 #define MAX_OPEN_FILES 32
