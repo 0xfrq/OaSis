@@ -113,9 +113,10 @@ void task_yield(void) {
 
 void task_switch(void) {
     if (task_count == 0) return;
-    if (task_count == 1) return;  // Cuma satu task, gak usah switch
+    if (task_count == 1) return;
 
-    // Pindah ke task berikutnya secara round-robin
+    task_t *prev = current_task;
+
     if (current_task == NULL) {
         current_task = &tasks[0];
     } else {
@@ -126,6 +127,13 @@ void task_switch(void) {
     }
 
     current_task->state = TASK_RUNNING;
+
+    /* Switch CR3 kalo task punya page directory sendiri */
+    if (current_task && current_task->context.cr3 != 0) {
+        paging_switch_dir((pde_t *)current_task->context.cr3);
+    } else if (prev && prev->context.cr3 && current_task->context.cr3 == 0) {
+        paging_switch_dir(NULL);
+    }
 }
 
 task_t *task_get_current(void) {

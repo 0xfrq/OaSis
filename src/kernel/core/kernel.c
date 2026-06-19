@@ -505,6 +505,28 @@ void kernel_main(void) {
                 vga_print("\n[*] File Descriptor Table:\n");
                 fd_table_t *table = fd_get_current_table();
                 fd_print_table(table);
+            } else if (starts_with(input, "hexdump ")) {
+                char *arg = input + 8;
+                trim_leading_spaces(&arg);
+                if (*arg == 0) { vga_print("hexdump: missing path\n"); }
+                else {
+                    int fd = vfs_open(arg, VFS_O_READ);
+                    if (fd < 0) { vga_print("hexdump: open failed\n"); }
+                    else {
+                        char hbuf[16]; int hn = 0;
+                        while ((hn = vfs_read(fd, hbuf, 16)) > 0) {
+                            for (int hi = 0; hi < hn; hi++) {
+                                char hxs[4];
+                                itoa((unsigned char)hbuf[hi], hxs, 16);
+                                if ((unsigned char)hbuf[hi] < 0x10) vga_putc('0');
+                                vga_print(hxs);
+                                vga_putc(' ');
+                            }
+                            vga_putc('\n');
+                        }
+                        vfs_close(fd);
+                    }
+                }
             } else if (strcmp(input, "pipetest") == 0) {
                 vga_print("\n[*] Running Pipe Test...\n");
                 task_io_pipe_demo();
@@ -735,6 +757,11 @@ disktest_done:
                 if (*arg == 0 || vfs_rmdir(arg) != 0) {
                     vga_print("rmdir: failed\n");
                 }
+            } else if (starts_with(input, "echo ")) {
+                char *arg = input + 5;
+                trim_leading_spaces(&arg);
+                if (*arg == 0) { vga_putc('\n'); }
+                else { vga_print(arg); vga_putc('\n'); }
             } else if (starts_with(input, "cat ")) {
                 char *arg = input + 4;
                 trim_leading_spaces(&arg);

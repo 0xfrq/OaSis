@@ -530,6 +530,17 @@ int vfs_open(const char *path, uint32_t flags) {
                 in->direct[j] = 0;
             }
         }
+        if (in->indirect) {
+            uint8_t ind_buf[BLOCK_SIZE];
+            if (read_block(in->indirect, ind_buf) == 0) {
+                uint32_t *ptrs = (uint32_t *)ind_buf;
+                for (int i = 0; i < 128; i++) {
+                    if (ptrs[i]) vfs_free_block(ptrs[i]);
+                }
+            }
+            vfs_free_block(in->indirect);
+            in->indirect = 0;
+        }
         in->size = 0;
         in->mtime = vfs_get_ticks();
         save_inode(ino);
@@ -555,6 +566,69 @@ int vfs_close(int fd) {
     return 0;
 }
 
+/* Helper: dapatkan block number untuk offset tertentu di file.
+ * Handle direct (0-11) dan indirect (12-139) block pointers.
+ * Return block number, atau -1 kalo belum ada. */
+static int get_block_ptr(inode_t *in, uint32_t blk_idx) {
+    if (blk_idx < 12) {
+        if (in->direct[blk_idx] == 0) return -1;
+        return (int)in->direct[blk_idx];
+    }
+
+    /* Indirect block */
+    if (in->indirect == 0) return -1;
+
+    uint32_t ind_idx = blk_idx - 12;
+    if (ind_idx >= 128) return -1;  /* max 12 + 128 = 140 blocks = 70KB */
+
+    uint8_t ind_buf[BLOCK_SIZE];
+    if (read_block(in->indirect, ind_buf) != 0) return -1;
+    uint32_t *block_ptrs = (uint32_t *)ind_buf;
+    if (block_ptrs[ind_idx] == 0) return -1;
+    return (int)block_ptrs[ind_idx];
+}
+
+/* Helper: set block number untuk offset tertentu.
+ * Alokasi indirect block kalo perlu.
+ * Return block number yang baru (alokasi), atau -1 kalo gagal. */
+static int set_block_ptr(inode_t *in, uint32_t blk_idx) {
+    if (blk_idx < 12) {
+        if (in->direct[blk_idx] != 0) return (int)in->direct[blk_idx];
+        int nb = vfs_alloc_block();
+        if (nb < 0) return -1;
+        in->direct[blk_idx] = (uint32_t)nb;
+        return nb;
+    }
+
+    /* Indirect block */
+    uint32_t ind_idx = blk_idx - 12;
+    if (ind_idx >= 128) return -1;
+
+    /* Alloc indirect block kalo belum ada */
+    if (in->indirect == 0) {
+        int nb = vfs_alloc_block();
+        if (nb < 0) return -1;
+        in->indirect = (uint32_t)nb;
+        /* Zero the indirect block */
+        uint8_t zero[BLOCK_SIZE];
+        mem_zero(zero, BLOCK_SIZE);
+        write_block(in->indirect, zero);
+    }
+
+    uint8_t ind_buf[BLOCK_SIZE];
+    if (read_block(in->indirect, ind_buf) != 0) return -1;
+    uint32_t *block_ptrs = (uint32_t *)ind_buf;
+
+    if (block_ptrs[ind_idx] == 0) {
+        int nb = vfs_alloc_block();
+        if (nb < 0) return -1;
+        block_ptrs[ind_idx] = (uint32_t)nb;
+        write_block(in->indirect, ind_buf);
+    }
+
+    return (int)block_ptrs[ind_idx];
+}
+
 int vfs_read(int fd, char *buf, uint32_t count) {
     if (fd < 0 || fd >= MAX_OPEN_FILES || !buf) return -1;
     if (vfs.open_files[fd].ref_count == 0) return -1;
@@ -572,9 +646,10 @@ int vfs_read(int fd, char *buf, uint32_t count) {
         uint32_t off = vfs.open_files[fd].offset + done;
         uint32_t blk_idx = off / BLOCK_SIZE;
         uint32_t blk_off = off % BLOCK_SIZE;
-        if (blk_idx >= 12 || in->direct[blk_idx] == 0) break;
+        int blk = get_block_ptr(in, blk_idx);
+        if (blk < 0) break;
         uint8_t block_buf[BLOCK_SIZE];
-        if (read_block(in->direct[blk_idx], block_buf) != 0) break;
+        if (read_block((uint32_t)blk, block_buf) != 0) break;
         uint32_t chunk = BLOCK_SIZE - blk_off;
         if (chunk > (count - done)) chunk = count - done;
         for (uint32_t i = 0; i < chunk; i++) buf[done + i] = (char)block_buf[blk_off + i];
@@ -597,14 +672,10 @@ int vfs_write(int fd, const char *buf, uint32_t count) {
         uint32_t off = vfs.open_files[fd].offset + done;
         uint32_t blk_idx = off / BLOCK_SIZE;
         uint32_t blk_off = off % BLOCK_SIZE;
-        if (blk_idx >= 12) break;
-        if (in->direct[blk_idx] == 0) {
-            int nb = vfs_alloc_block();
-            if (nb < 0) break;
-            in->direct[blk_idx] = (uint32_t)nb;
-        }
+        int blk = set_block_ptr(in, blk_idx);
+        if (blk < 0) break;
         uint8_t block_buf[BLOCK_SIZE];
-        if (read_block(in->direct[blk_idx], block_buf) != 0) break;
+        if (read_block((uint32_t)blk, block_buf) != 0) break;
         uint32_t chunk = BLOCK_SIZE - blk_off;
         if (chunk > (count - done)) chunk = count - done;
         for (uint32_t i = 0; i < chunk; i++) block_buf[blk_off + i] = (uint8_t)buf[done + i];
@@ -642,11 +713,24 @@ int vfs_unlink(const char *path) {
     if (dir_remove_child(pino, name) != 0) { VFS_ERR("unlink: dir_remove_child failed"); return -1; }
 
     /* Now safe to free resources */
+    /* Free direct blocks */
     for (int i = 0; i < 12; i++) {
         if (in->direct[i]) {
             vfs_free_block(in->direct[i]);
             in->direct[i] = 0;
         }
+    }
+    /* Free indirect blocks */
+    if (in->indirect) {
+        uint8_t ind_buf[BLOCK_SIZE];
+        if (read_block(in->indirect, ind_buf) == 0) {
+            uint32_t *ptrs = (uint32_t *)ind_buf;
+            for (int i = 0; i < 128; i++) {
+                if (ptrs[i]) vfs_free_block(ptrs[i]);
+            }
+        }
+        vfs_free_block(in->indirect);
+        in->indirect = 0;
     }
     vfs_free_inode(ino);
     save_inode_table();
@@ -676,7 +760,19 @@ int vfs_rmdir(const char *path) {
     if (vfs_resolve_path(parent, &pino) != 0) return -1;
     if (dir_remove_child(pino, name) != 0) return -1;
 
-    if (in->direct[0]) vfs_free_block(in->direct[0]);
+    for (int i = 0; i < 12; i++) {
+        if (in->direct[i]) vfs_free_block(in->direct[i]);
+    }
+    if (in->indirect) {
+        uint8_t ind_buf[BLOCK_SIZE];
+        if (read_block(in->indirect, ind_buf) == 0) {
+            uint32_t *ptrs = (uint32_t *)ind_buf;
+            for (int i = 0; i < 128; i++) {
+                if (ptrs[i]) vfs_free_block(ptrs[i]);
+            }
+        }
+        vfs_free_block(in->indirect);
+    }
     vfs_free_inode(ino);
     save_inode_table();
     save_superblock();

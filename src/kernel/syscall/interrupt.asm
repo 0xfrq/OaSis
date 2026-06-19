@@ -87,6 +87,10 @@ isr_common_stub:
     iret
 
 ; IRQ handlers
+[EXTERN timer_interrupt_handler]
+[EXTERN current_task]
+[EXTERN kernel_page_dir]
+
 [GLOBAL irq_0]
 irq_0:
     cli
