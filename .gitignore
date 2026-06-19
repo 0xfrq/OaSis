@@ -1,0 +1,10 @@
+# build output
+kernel.bin
+oasis.iso
+*.o
+
+# disk image (too big for repo)
+disk.img
+
+# iso staging
+iso/boot/kernel
