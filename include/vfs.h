@@ -100,7 +100,7 @@ int vfs_unlink(const char *path);
 int vfs_rmdir(const char *path);
 int vfs_list(const char *path, char *buf, uint32_t max_len);
 int vfs_chdir(const char *path);
-void vfs_getcwd(char *buf, uint32_t max_len);
+int vfs_getcwd(char *buf, uint32_t max_len);
 uint32_t vfs_get_ticks(void);
 void vfs_set_ticks(uint32_t ticks);
 

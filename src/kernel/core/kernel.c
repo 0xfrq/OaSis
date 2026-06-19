@@ -675,8 +675,33 @@ disktest_done:
                 char *arg = input + 2;
                 trim_leading_spaces(&arg);
                 if (*arg == 0) arg = ".";
-                if (vfs_list(arg, out, sizeof(out)) == 0) {
-                    vga_print(out);
+                if (vfs_list(arg, out, sizeof(out)) >= 0) {
+                    int j = 0;
+                    while (out[j] != 0) {
+                        if (out[j] == 'd') {
+                            vga_set_color(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+                            j += 2;
+                            while (out[j] != 0 && out[j] != '\n') {
+                                vga_putc(out[j++]);
+                            }
+                            if (out[j] == '\n') j++;
+                            vga_set_color(15, VGA_COLOR_BLACK);
+                            vga_print("  ");
+                        } else if (out[j] == 'f') {
+                            vga_set_color(15, VGA_COLOR_BLACK);
+                            j += 2;
+                            while (out[j] != 0 && out[j] != '\n') {
+                                vga_putc(out[j++]);
+                            }
+                            if (out[j] == '\n') j++;
+                            vga_set_color(15, VGA_COLOR_BLACK);
+                            vga_print("  ");
+                        } else {
+                            vga_putc(out[j]);
+                            j++;
+                        }
+                    }
+                    vga_putc('\n');
                 } else {
                     vga_print("ls: failed\n");
                 }

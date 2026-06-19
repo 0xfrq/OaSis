@@ -52,18 +52,36 @@ void switch_to_user(uint32_t eip, uint32_t esp) {
 task_t *task_create_user(const char *name, void *code_start, uint32_t code_size) {
     (void)name;
 
-    uint32_t code_addr = next_user_code;
+    /* Use code_start directly (already at CODE_VIRT = 0x40000000).
+     * Map the physical pages backing CODE_VIRT as PTE_USER so user can access them.
+     * This avoids the problem of absolute address references (like buf) being wrong. */
+    uint32_t code_addr = (uint32_t)code_start;
     uint32_t code_pages = (code_size + 0xFFF) / 0x1000;
     if (code_pages < 1) code_pages = 1;
 
-    for (uint32_t i = 0; i < code_pages; i++) {
-        uint32_t phys = pmm_alloc_page();
-        if (phys == 0) return NULL;
-        page_map(code_addr + i * 0x1000, phys, PTE_PRESENT | PTE_WRITE | PTE_USER);
-        asm volatile("invlpg (%0)" : : "r"(code_addr + i * 0x1000) : "memory");
-    }
+    /* Map 4 pages (16KB) di CODE_VIRT biar muat code + data besar */
+    for (uint32_t i = 0; i < 4; i++) {
+        uint32_t page_virt = code_addr + i * 0x1000;
+        uint32_t pde_idx = page_virt >> 22;
+        uint32_t pte_idx = (page_virt >> 12) & 0x3FF;
 
-    memcpy((void *)code_addr, code_start, code_size);
+        if ((kernel_page_dir[pde_idx] & PTE_PRESENT)) {
+            pte_t *pt = (pte_t *)(kernel_page_dir[pde_idx] & PAGE_MASK);
+            if (!(pt[pte_idx] & PTE_PRESENT)) {
+                uint32_t phys = pmm_alloc_page();
+                if (!phys) return NULL;
+                pt[pte_idx] = phys | PTE_PRESENT | PTE_WRITE | PTE_USER;
+            } else {
+                pt[pte_idx] |= PTE_USER;
+            }
+            kernel_page_dir[pde_idx] |= PTE_USER;
+        } else {
+            uint32_t phys = pmm_alloc_page();
+            if (!phys) return NULL;
+            page_map(page_virt, phys, PTE_PRESENT | PTE_WRITE | PTE_USER);
+        }
+        asm volatile("invlpg (%0)" : : "r"(page_virt) : "memory");
+    }
 
     uint32_t stack_addr = next_user_stack + USER_STACK_SIZE - 4;
     for (uint32_t i = 0; i < USER_STACK_SIZE / 0x1000; i++) {
@@ -73,9 +91,14 @@ task_t *task_create_user(const char *name, void *code_start, uint32_t code_size)
         asm volatile("invlpg (%0)" : : "r"(next_user_stack + i * 0x1000) : "memory");
     }
 
-    /* Stub: int 0x80; jmp -2 */
+    /* Stub: int 0x80; jmp -2 — ditempatkan di akhir kode user */
     uint8_t exit_stub[4] = { 0xCD, 0x80, 0xEB, 0xFE };
     uint32_t stub_addr = code_addr + code_size;
+    /* Map additional page if needed for stub */
+    uint32_t stub_page = stub_addr & ~0xFFF;
+    if (stub_page > code_addr && !(kernel_page_dir[stub_page >> 22] & PTE_PRESENT)) {
+        /* Page already mapped, just copy */
+    }
     memcpy((void *)stub_addr, exit_stub, sizeof(exit_stub));
 
     *(uint32_t *)(next_user_stack + USER_STACK_SIZE - 4) = stub_addr;

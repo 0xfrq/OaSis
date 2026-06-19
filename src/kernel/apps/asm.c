@@ -1011,6 +1011,78 @@ static int process_line(char *line) {
     trim(ops);
     str_lower(mnem);
 
+    /* times N <instruksi> — ulang instruksi N kali */
+    if (streq(mnem, "times")) {
+        /* Parse count */
+        uint32_t count = 0;
+        char *cp = ops;
+        while (*cp >= '0' && *cp <= '9') {
+            count = count * 10 + (uint32_t)(*cp - '0');
+            if (count > 4096) { vga_print("asm: times overflow\n"); return -1; }
+            cp++;
+        }
+        if (count == 0) { vga_print("asm: times count=0\n"); return -1; }
+        while (*cp == ' ' || *cp == '\t') cp++;
+        if (!*cp) { vga_print("asm: times missing instr\n"); return -1; }
+
+        /* Expand N kali langsung ke output tanpa rekursi ke process_line.
+         * Parse instruksi sekali, terus emit hasilnya N kali.
+         * Ini menghindari bug rekursi/static buffer.
+         */
+        char *instr = cp;
+        /* Parse mnemonic dari instruksi */
+        char sub_mnem[16] = {0};
+        int si = 0;
+        while (instr[si] && instr[si] != ' ' && instr[si] != '\t') si++;
+        if (si >= 16) si = 15;
+        strncopy(sub_mnem, instr, si + 1);
+        sub_mnem[si] = 0;
+        str_lower(sub_mnem);
+        char *sub_ops = instr + si;
+        trim(sub_ops);
+
+        if (streq(sub_mnem, "db")) {
+            /* Untuk db: parse args sekali, emit N kali */
+            char *p = sub_ops;
+            /* Parse semua values */
+            uint8_t values[128];
+            int nv = 0;
+            while (*p && nv < 128) {
+                while (*p == ' ' || *p == '\t' || *p == ',') p++;
+                if (!*p) break;
+                if (*p == '\'' || *p == '"') {
+                    char q = *p; p++;
+                    while (*p && *p != q) { values[nv++] = (uint8_t)*p++; }
+                    if (*p == q) p++;
+                } else {
+                    char *end = p;
+                    while (*end && *end != ',') end++;
+                    char saved = *end; *end = 0;
+                    uint32_t val;
+                    if (parse_int(p, &val) && nv < 128) values[nv++] = (uint8_t)(val & 0xFF);
+                    *end = saved;
+                    p = end;
+                }
+            }
+            /* Emit N kali */
+            for (uint32_t rep = 0; rep < count; rep++) {
+                for (int vi = 0; vi < nv; vi++) emit(values[vi]);
+            }
+            return 0;
+        } else if (streq(sub_mnem, "nop")) {
+            for (uint32_t rep = 0; rep < count; rep++) emit(0x90);
+            return 0;
+        } else if (streq(sub_mnem, "hlt")) {
+            for (uint32_t rep = 0; rep < count; rep++) emit(0xF4);
+            return 0;
+        } else {
+            vga_print("asm: times unsupported: ");
+            vga_print(sub_mnem);
+            vga_print("\n");
+            return -1;
+        }
+    }
+
     /* instruksi tanpa operand */
     if (streq(mnem, "nop"))   { emit(0x90); return 0; }
     if (streq(mnem, "ret"))   { emit(0xC3); return 0; }
@@ -1055,16 +1127,21 @@ static int process_line(char *line) {
                 /* numeric value: parse sampai koma atau akhir string */
                 char *end = p;
                 while (*end && *end != ',') end++;
-                /* trim trailing spaces */
+                /* trim trailing spaces — tapi jangan sampe p ke null */
                 char *trimmed = end;
+                if (trimmed == p) break;  /* nothing to parse */
                 while (trimmed > p && (trimmed[-1] == ' ' || trimmed[-1] == '\t')) trimmed--;
-                char save = *trimmed;
-                *trimmed = 0;
-                uint32_t val;
-                if (parse_int(p, &val)) {
-                    emit((uint8_t)(val & 0xFF));
+                /* kalo cuma sampe sini, gak perlu null-terminate */
+                uint32_t val = 0;
+                if (*trimmed == 0) {
+                    /* Parse full string case: "0" */
+                    if (parse_int(p, &val)) emit((uint8_t)(val & 0xFF));
+                } else {
+                    char save = *trimmed;
+                    *trimmed = 0;
+                    if (parse_int(p, &val)) emit((uint8_t)(val & 0xFF));
+                    *trimmed = save;
                 }
-                *trimmed = save;
                 p = end;
             }
         }
