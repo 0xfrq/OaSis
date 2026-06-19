@@ -1,8 +1,8 @@
-# OaSis — Sistem Operasi Edukasi
+# OaSis -- Sistem Operasi Edukasi
 
 <p align="center">
   <b>Sistem operasi 32-bit x86 dari nol, dibikin untuk belajar.</b><br>
-  <code>Ring 3 user mode</code> • <code>23 syscalls</code> • <code>Process isolation</code> • <code>OAFS filesystem</code> • <code>occ C compiler</code>
+  <code>Ring 3 user mode</code> * <code>23 syscalls</code> * <code>Process isolation</code> * <code>OAFS filesystem</code> * <code>occ C compiler</code>
 </p>
 
 ---
@@ -39,24 +39,24 @@
 - GDT with ring 0/ring 3 segments + TSS
 - IDT for 32 interrupts + 16 IRQs + int 0x80 syscall handler
 - PIC (Programmable Interrupt Controller)
-- VGA text mode (80×25, 16 colors)
+- VGA text mode (80x25, 16 colors)
 
 ### Manajemen Memori
 - E820 memory detection
-- Physical Memory Manager (PMM) — bitmap-based page allocator
-- Paging (4KB pages) — identity map + higher-half kernel (0xC0000000+)
-- **Process isolation** — each user task gets a clone of kernel page dir
-  - Kernel pages (identity map, higher-half) → **no PTE_USER**
-  - User pages (code, stack, brk) → **with PTE_USER**
-- **Per-task CR3 switching** — task_switch() updates CR3 otomatis
-- Kernel heap allocator — free-list with splitting and coalescing
+- Physical Memory Manager (PMM) -- bitmap-based page allocator
+- Paging (4KB pages) -- identity map + higher-half kernel (0xC0000000+)
+- **Process isolation** -- each user task gets a clone of kernel page dir
+  - Kernel pages (identity map, higher-half) -> **no PTE_USER**
+  - User pages (code, stack, brk) -> **with PTE_USER**
+- **Per-task CR3 switching** -- task_switch() updates CR3 otomatis
+- Kernel heap allocator -- free-list with splitting and coalescing
 - `kmalloc`, `kfree`, `kcalloc`, `krealloc`
 
 ### User Mode (Ring 3)
 - **Ring 3 execution**: user code via `user /file.asm` command
 - **Process isolation**: dedicated page directory per user task
 - **Syscall interface**: 23 system calls via `int 0x80`
-- **Exit handling**: `SYSCALL_USER_EXIT` (21) via iret redirect → `user_return_to_shell`
+- **Exit handling**: `SYSCALL_USER_EXIT` (21) via iret redirect -> `user_return_to_shell`
 - **User heap**: `SYSCALL_BRK` (22) for dynamic memory allocation
 - **User fd_table**: each user task has its own file descriptor table
 
@@ -108,7 +108,7 @@
 - Control flow: `jmp`, `je/jz`, `jne/jnz`, `call`, `ret`
 - Stack: `push` (reg + imm + label), `pop`, `pusha`, `popa`
 - Data: `db` with string + mixed format + numeric support
-- **`times` directive** — repeat instruction N times
+- **`times` directive** -- repeat instruction N times
 - Segment registers: `mov ds, ax`, `mov ax, ds`
 - External symbols via tabel: `_printf`, `_scanf`, `_malloc`, `_free`,
   `_sys_open`, `_sys_read`, `_sys_write_fd`, `_sys_close`, `_usr_printf`, dll
@@ -132,9 +132,9 @@
 
 ### User Space Library (usrlib)
 - Functions using `int 0x80` syscalls internally
-- `usr_printf`, `usr_puts`, `usr_putchar` — output via syscall
-- `usr_gets`, `usr_getchar` — input via syscall
-- `usr_malloc`, `usr_free` — memory via `SYSCALL_BRK`
+- `usr_printf`, `usr_puts`, `usr_putchar` -- output via syscall
+- `usr_gets`, `usr_getchar` -- input via syscall
+- `usr_malloc`, `usr_free` -- memory via `SYSCALL_BRK`
 - Available as external symbols from built-in assembler
 
 ### Text Editor
@@ -149,44 +149,44 @@
 
 ```
 OaSis/
-├── src/
-│   ├── boot/          # Entry point, linker script
-│   │   ├── entry.asm
-│   │   └── linker.ld
-│   └── kernel/
-│       ├── core/      # Kernel inti
-│       │   ├── kernel.c       # Shell + main loop
-│       │   ├── gdt.c          # GDT + TSS + user segments
-│       │   ├── memory.c       # E820 memory detection
-│       │   ├── paging.c       # Paging + process isolation
-│       │   ├── pmm.c          # Physical memory manager
-│       │   └── vga.c          # VGA text mode driver
-│       ├── drivers/   # Hardware drivers
-│       │   ├── ata.c, block.c, idt.c, io.c
-│       │   ├── keyboard.c, pic.c, timer.c
-│       ├── fs/        # Filesystem
-│       │   ├── fd.c          # File descriptor layer
-│       │   └── vfs.c         # OAFS filesystem (hardened + indirect)
-│       ├── lib/       # Library
-│       │   ├── string.c, lexer.c, parser.c, codegen.c
-│       │   ├── klibc.c       # Kernel libc (printf/scanf)
-│       │   ├── heap.c        # Kernel heap (kmalloc/kfree)
-│       │   ├── log.c         # Logging infrastructure
-│       │   └── usrlib.c      # User space libc (via syscalls)
-│       ├── syscall/   # System call layer
-│       │   ├── syscall.c     # Dispatcher (23 syscalls)
-│       │   └── interrupt.asm # int 0x80 handler (ring 0+3)
-│       ├── tasks/     # Task management
-│       │   ├── task.c        # Scheduler + TCB + CR3 switching
-│       │   └── task_user.c   # User mode task creation
-│       └── apps/      # User applications (kernel-level)
-│           ├── editor.c      # Text editor
-│           └── asm.c         # Built-in assembler
-├── include/           # Header files
-├── iso/               # GRUB boot files
-├── docs/              # Documentation (Jekyll)
-├── Makefile
-└── readme.md
+|-- src/
+|   |-- boot/          # Entry point, linker script
+|   |   |-- entry.asm
+|   |   |-- linker.ld
+|   |-- kernel/
+|       |-- core/      # Kernel inti
+|       |   |-- kernel.c       # Shell + main loop
+|       |   |-- gdt.c          # GDT + TSS + user segments
+|       |   |-- memory.c       # E820 memory detection
+|       |   |-- paging.c       # Paging + process isolation
+|       |   |-- pmm.c          # Physical memory manager
+|       |   |-- vga.c          # VGA text mode driver
+|       |-- drivers/   # Hardware drivers
+|       |   |-- ata.c, block.c, idt.c, io.c
+|       |   |-- keyboard.c, pic.c, timer.c
+|       |-- fs/        # Filesystem
+|       |   |-- fd.c          # File descriptor layer
+|       |   |-- vfs.c         # OAFS filesystem (hardened + indirect)
+|       |-- lib/       # Library
+|       |   |-- string.c, lexer.c, parser.c, codegen.c
+|       |   |-- klibc.c       # Kernel libc (printf/scanf)
+|       |   |-- heap.c        # Kernel heap (kmalloc/kfree)
+|       |   |-- log.c         # Logging infrastructure
+|       |   |-- usrlib.c      # User space libc (via syscalls)
+|       |-- syscall/   # System call layer
+|       |   |-- syscall.c     # Dispatcher (23 syscalls)
+|       |   |-- interrupt.asm # int 0x80 handler (ring 0+3)
+|       |-- tasks/     # Task management
+|       |   |-- task.c        # Scheduler + TCB + CR3 switching
+|       |   |-- task_user.c   # User mode task creation
+|       |-- apps/      # User applications (kernel-level)
+|           |-- editor.c      # Text editor
+|           |-- asm.c         # Built-in assembler
+|-- include/           # Header files
+|-- iso/               # GRUB boot files
+|-- docs/              # Documentation (Jekyll)
+|-- Makefile
+|-- readme.md
 ```
 
 ---
@@ -239,19 +239,19 @@ make run      # boot di QEMU
 
 ## Rencana Ke Depan
 
-- [ ] **User space utilities via `occ`** — port cat, ls, echo ke C
-- [ ] **Better preemptive scheduler** — real context save/restore
-- [ ] **Framebuffer** — VBE linear framebuffer graphics
-- [ ] **Double fault handler** — recover instead of triple fault
-- [ ] **TCP/IP stack** — networking support
-- [ ] **Enhanced `occ` compiler** — arrays, structs, for loops, char*
+- [ ] **User space utilities via `occ`** -- port cat, ls, echo ke C
+- [ ] **Better preemptive scheduler** -- real context save/restore
+- [ ] **Framebuffer** -- VBE linear framebuffer graphics
+- [ ] **Double fault handler** -- recover instead of triple fault
+- [ ] **TCP/IP stack** -- networking support
+- [ ] **Enhanced `occ` compiler** -- arrays, structs, for loops, char*
 
 ---
 
 ## Lisensi
 
-Bebas dipakai untuk belajar. No warranty — ini OS edukasi, bukan production-ready.
+Bebas dipakai untuk belajar. No warranty -- ini OS edukasi, bukan production-ready.
 
 ---
 
-**Dibikin dengan kopi, rasa penasaran, dan banyak debugging.** ☕
+**Dibikin dengan kopi, rasa penasaran, dan banyak debugging.** 
