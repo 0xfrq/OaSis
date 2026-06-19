@@ -1,134 +1,131 @@
-# OaSis
+# OaSis — Sistem Operasi Edukasi
 
-**Sistem operasi sederhana buat belajar.**
+<p align="center">
+  <b>Sistem operasi 32-bit x86 dari nol, dibikin untuk belajar.</b><br>
+  <code>Ring 3 user mode</code> • <code>23 syscalls</code> • <code>Process isolation</code> • <code>OAFS filesystem</code> • <code>occ C compiler</code>
+</p>
 
 ---
 
-## Fitur yang Udah Ada
+## Pencapaian Terkini
 
-### Booting & Kernel
-- **Multiboot-compliant bootloader** - boot lewat GRUB atau langsung pake QEMU
-- **32-bit protected mode** - jalan di x86 (i386)
-- **GDT & IDT** - segmentation sama interrupt handling udah beres
+| Area | Status |
+|------|--------|
+| **Ring 3 User Mode** | ✅ User code jalan di ring 3, `user /file.asm` |
+| **Process Isolation** | ✅ Per-task page directory, user blocked dari kernel pages |
+| **System Calls** | ✅ 23 syscalls (0-22) via `int 0x80` |
+| **User Heap (brk)** | ✅ `SYSCALL_BRK` untuk expand heap user |
+| **User Space Utilities** | ✅ `cat`, `echo`, `write` jalan di ring 3 |
+| **Kernel Heap** | ✅ `kmalloc`/`kfree` / `kcalloc` / `krealloc` free-list allocator |
+| **Logging** | ✅ Circular buffer, `dmesg` command, auto-log exception |
+| **Filesystem (OAFS)** | ✅ Hardened: `touch`, `rm`, `ls`, `cd`, `write`, `cat` |
+| **occ Compiler** | ✅ Subset C: `int`, `if`, `while`, `printf`, `malloc` |
+| **Built-in Assembler** | ✅ `nasm` + `times` directive support |
+| **Mini Libc** | ✅ `printf`, `scanf`, `putchar`, `gets`, `sprintf`, `atoi` |
+| **GDT + TSS** | ✅ User segments (0x18/0x20) + Task State Segment |
+| **Task Scheduler** | ✅ Preemptive multitasking via timer IRQ |
+| **Text Editor** | ✅ Nano-like editor (`edit`) |
+| **Drivers** | ✅ Keyboard PS/2, VGA text mode, ATA/IDE, PIT timer, Block cache |
 
-### Interrupt & Hardware
-- **PIC (Programmable Interrupt Controller)** - ngatur IRQ dari hardware
-- **Timer (PIT)** - tick 100Hz buat scheduling
-- **Keyboard driver** - baca input dari keyboard PS/2
-  - Support **Shift** (kiri & kanan) buat huruf kapital dan simbol
-  - Layout US QWERTY lengkap (`! @ # $ % ^ & * ( ) _ + { } : " < > ? ~ |` dst)
-  - Support **Ctrl** combinations (Ctrl+S, Ctrl+X, Ctrl+Z)
-  - Support **arrow keys**, Home, End, PageUp/Down, Delete
-- **VGA text mode** - output ke layar, support warna
+---
 
-### Memori
-- **Deteksi memori (E820)** - tau berapa RAM yang tersedia
-- **Physical Memory Manager (PMM)** - ngatur page frame allocation
-- **Paging** - virtual memory udah enable
+## Fitur Detail
 
-### Proses & Task
-- **Task scheduler** - preemptive multitasking pake timer interrupt
-- **Fork, exec, wait** - basic process management
-- **File descriptor per-proses** - tiap task punya FD table sendiri
+### Kernel & Boot
+- Multiboot-compliant (GRUB-compatible)
+- 32-bit protected mode (x86 i386)
+- GDT with ring 0/ring 3 segments + TSS
+- IDT for 32 interrupts + 16 IRQs + int 0x80 syscall handler
+- PIC (Programmable Interrupt Controller)
+- VGA text mode (80×25, 16 colors)
 
-### I/O Subsystem
-- **File descriptor** - stdin, stdout, stderr, pipe, file
-- **Pipe** - komunikasi antar proses (IPC)
-- **Dup/Dup2** - duplicate file descriptor
+### Manajemen Memori
+- E820 memory detection
+- Physical Memory Manager (PMM) — bitmap-based page allocator
+- Paging (4KB pages) — identity map + higher-half kernel (0xC0000000+)
+- **Process isolation** — each user task gets a clone of kernel page dir
+  - Kernel pages (identity map, higher-half) → **no PTE_USER**
+  - User pages (code, stack, brk) → **with PTE_USER**
+- Kernel heap allocator — free-list with splitting and coalescing
+- `kmalloc`, `kfree`, `kcalloc`, `krealloc`
 
-### Storage & Filesystem
-- **ATA/IDE driver** - baca-tulis ke hard disk via PIO
-- **Block device layer** - abstraction + cache
-- **OAFS (Oasis File System)** - filesystem custom, inode-based
-  - Support file & directory
-  - Read, write, create, delete
-  - Path resolution (absolute & relative)
+### User Mode (Ring 3)
+- **Ring 3 execution**: user code via `user /file.asm` command
+- **Process isolation**: dedicated page directory per user task
+- **Syscall interface**: 23 system calls via `int 0x80`
+- **Exit handling**: `SYSCALL_USER_EXIT` (21) to return to shell cleanly
+- **User heap**: `SYSCALL_BRK` (22) for dynamic memory allocation
+- **User fd_table**: each user task has its own file descriptor table
+
+### System Calls (int 0x80)
+```
+ 0  SYSCALL_WRITE       - write to stdout
+ 1  SYSCALL_SLEEP       - sleep (ms)         [stub]
+ 2  SYSCALL_YIELD       - yield task
+ 3  SYSCALL_EXIT        - exit process
+ 4  SYSCALL_GETPID      - get process ID
+ 5  SYSCALL_FORK        - fork process
+ 6  SYSCALL_EXEC        - exec program       [stub]
+ 7  SYSCALL_WAIT        - wait for child
+ 8  SYSCALL_GETPPID     - get parent PID
+ 9  SYSCALL_OPEN        - open file
+10  SYSCALL_CLOSE       - close fd
+11  SYSCALL_READ        - read from fd
+12  SYSCALL_WRITE_FD    - write to fd
+13  SYSCALL_PIPE        - create pipe
+14  SYSCALL_DUP         - dup fd
+15  SYSCALL_DUP2        - dup2 fd
+16  SYSCALL_SEEK        - seek in fd
+17  SYSCALL_FDINFO      - debug fd table
+18  SYSCALL_BLOCK_READ  - read block device
+19  SYSCALL_BLOCK_WRITE - write block device
+20  SYSCALL_BLOCK_FLUSH - flush block cache
+21  SYSCALL_USER_EXIT   - exit user mode → return to shell
+22  SYSCALL_BRK         - expand/shrink user heap
+```
+
+### Filesystem (OAFS)
+- Custom inode-based filesystem (Oasis File System)
+- 1024 inodes, 8192 blocks, 512 bytes/block
+- 12 direct block pointers per inode (~6KB per file)
+- Directory support with path resolution (absolute + relative)
+- **Hardened**: proper error messages, atomic unlink/rmdir, path validation
 
 ### Shell
-- Command-line interface sederhana
-- Command yang available:
-  ```
-  help, clear, uptime, meminfo, taskinfo
-  ls, cd, pwd, mkdir, touch, rm, rmdir
-  cat, write, append, edit, asm, nasm
-  iotest, fdinfo, pipetest, disktest, diskinfo
-  ```
+- Command-line interface dengan history
+- Commands: `help`, `clear`, `uptime`, `meminfo`, `taskinfo`
+- File operations: `ls`, `cd`, `pwd`, `mkdir`, `touch`, `rm`, `rmdir`, `cat`, `write`, `append`
+- Development: `edit`, `asm`, `nasm`, `occ`, `user`
+- System: `dmesg`, `syscall`, `iotest`, `fdinfo`, `pipetest`, `disktest`
+- Process: `taskinfo`, `runtasks`
+
+### Built-in x86 Assembler
+- Full instruction set: `mov`, `add`, `sub`, `cmp`, `xor`, `and`, `or`
+- Control flow: `jmp`, `je/jz`, `jne/jnz`, `call`, `ret`
+- Stack: `push`, `pop`, `pusha`, `popa`
+- Data: `db` with string + mixed format support
+- **`times` directive** — repeat instruction N times
+- Segment registers: `mov ds, ax`, `mov ax, ds`
+- External symbols: `_printf`, `_scanf`, `_malloc`, `_free`
+- Forward/backward label references, auto-patch
+
+### occ C Compiler
+- Subset of C: `int`, `if`, `while`, function calls
+- String literals, integer arithmetic, comparison operators
+- Auto-generated assembly → assembled by built-in assembler
+- `printf`, `malloc`, `free`, `calloc`, `realloc` via external symbols
+
+### Logging Infrastructure
+- Circular buffer (4096 bytes)
+- Auto-log exceptions with register dump
+- `dmesg` command to view log
+- Safe for interrupt context
 
 ### Text Editor
-- **Nano-like editor** - editor teks sederhana yang bisa dipake langsung di shell
-- **Arrow keys** - navigasi cursor pake panah
-- **Ctrl+S** - simpan file
-- **Ctrl+X** - keluar (auto-save kalo ada perubahan)
-- **Scrolling** - support scroll buat file yang panjang
-- **Status bar** - nunjukin nama file, baris, dan kolom
-- Cara pake: `edit /path/to/file`
-
-### Simple Assembler
-- **Dua mode**: interaktif (`asm`) atau assemble file dari disk (`nasm <file.asm>`)
-- **Mode interaktif (`asm`)**: tulis kode assembly langsung di shell, baris per baris, akhiri dengan `---`
-- **Mode file (`nasm <file>`)**: simpan dulu kode ke file pake `edit`, lalu `nasm` bakal load file, assemble, print info, jalanin
-- **Workflow lengkap (write → assemble → run)**:
-  ```
-  > edit hello.asm        # tulis kode di editor, Ctrl+S simpan, Ctrl+X keluar
-  > nasm hello.asm        # assemble & jalanin, output: byte count, alamat, hex dump, eksekusi
-  ```
-- **Instruksi yang didukung**:
-  - Arithmetic: `mov`, `add`, `sub`, `cmp`, `xor`, `and`, `or`, `inc`, `dec`
-  - Stack: `push`, `pop`, `pusha`, `popa`
-  - Control flow: `jmp`, `je/jz`, `jne/jnz`, `jg`, `jl`, `jge`, `jle`, `call`, `ret`
-  - System: `int`, `nop`, `hlt`, `sti`, `cli`
-  - Data: `db 'string'` atau `db 0x41`
-- **Register**: `eax`, `ecx`, `edx`, `ebx`, `esp`, `ebp`, `esi`, `edi`
-- **Label**: diakhiri `:`, mendukung forward & backward reference
-- **Komentar**: diawali `;`
-- **Memory addressing**: `[0xB8000]`, `[eax]`, `mov byte [addr], imm`
-- **Immediate**: desimal atau hex (prefix `0x`)
-- **Auto-return**: assembler otomatis sisip `ret` sebelum data block dan di akhir kode, jadi setelah eksekusi otomatis balik ke shell
-- **Sandbox memory**: kode di-load ke virtual address terpisah (`0x200000`) pake `pmm_alloc_page()` + `page_map()`
-- Contoh Hello World (mode interaktif, akhiri dengan `---`):
-  ```asm
-  mov eax, 0          ; sys_write
-  mov ebx, msg        ; pointer string
-  mov ecx, 13         ; panjang string
-  int 0x80
-  msg:
-  db 'Hello World!'
-  ---
-  ```
-- Contoh Hello World (mode file):
-  ```
-  > edit hello.asm
-  # isi file:
-  mov eax, 0
-  mov ebx, msg
-  mov ecx, 13
-  int 0x80
-  msg:
-  db 'Hello World!'
-  # Ctrl+S, Ctrl+X
-  > nasm hello.asm
-  Mengassemble hello.asm...
-  Kode mesin: 27 byte di alamat 0x200000
-  Bytes: b8 00 00 00 00 bb ... cd 80 c3 48 65 6c 6c 6f ...
-  Menjalankan...
-  Hello World!
-  [selesai]
-  ```
-
-### System Calls
-- `write`, `read`, `open`, `close`, `seek`
-- `fork`, `exec`, `wait`, `exit`
-- `pipe`, `dup`, `dup2`
-- `yield`, `sleep`, `getpid`, `getppid`
-- `block_read`, `block_write`, `block_flush`
-
-### Mini Libc (Standard Library)
-Implementasi libc minimal untuk user-space:
-- **I/O**: `printf`, `scanf`, `putchar`, `getchar`, `puts`, `gets`
-- **File**: `open`, `close`, `read`, `write`
-- **Formatting**: Mendukung spesifikator `%d`, `%i`, `%u`, `%x`, `%X`, `%o`, `%s`, `%c`, `%p`, `%%`
-- **Fitur Spesial**: Field width (e.g., `%10d`), left alignment (`-`), zero padding (`0`)
-- **Catatan**: Saat ini `printf` unbuffered dan belum mendukung floating point atau presisi.
+- Nano-like editor: `edit /path/to/file`
+- Arrow keys, Ctrl+S (save), Ctrl+X (exit), scrolling
+- Status bar with filename, line, column
+- Auto-save on exit
 
 ---
 
@@ -137,132 +134,107 @@ Implementasi libc minimal untuk user-space:
 ```
 OaSis/
 ├── src/
-│   ├── boot/
-│   │   ├── entry.asm          # entry point, multiboot header
-│   │   └── linker.ld          # linker script
+│   ├── boot/          # Entry point, linker script
+│   │   ├── entry.asm
+│   │   └── linker.ld
 │   └── kernel/
-│       ├── core/              # inti kernel
-│       │   ├── kernel.c       # main loop + shell
-│       │   ├── memory.c       # deteksi memori (E820)
-│       │   ├── paging.c       # virtual memory
-│       │   ├── pmm.c          # physical memory manager
+│       ├── core/      # Kernel inti
+│       │   ├── kernel.c       # Shell + main loop
+│       │   ├── gdt.c          # GDT + TSS + user segments
+│       │   ├── memory.c       # E820 memory detection
+│       │   ├── paging.c       # Paging + process isolation
+│       │   ├── pmm.c          # Physical memory manager
 │       │   └── vga.c          # VGA text mode driver
-│       ├── drivers/           # hardware drivers
-│       │   ├── ata.c          # ATA/IDE disk
-│       │   ├── block.c        # block device + cache
-│       │   ├── idt.c          # interrupt descriptor table
-│       │   ├── io.c           # port I/O (inb/outb)
-│       │   ├── keyboard.c     # PS/2 keyboard
-│       │   ├── pic.c          # programmable interrupt controller
-│       │   └── timer.c        # PIT timer
-│       ├── fs/                # filesystem
-│       │   ├── fd.c           # file descriptor layer
-│       │   └── vfs.c          # OAFS implementation
-│       ├── lib/               # utility
-│       │   └── string.c       # string functions
-│       ├── syscall/           # system call
-│       │   ├── syscall.c      # syscall dispatcher
-│       │   └── interrupt.asm  # int 0x80 wrapper
-│       └── tasks/             # demo tasks
-│           ├── task.c         # task manager / scheduler
-│           ├── tasks_demo.c   # demo: idle & worker
-│           ├── tasks_io.c     # demo: I/O subsystem
-│           └── tasks_11.c     # demo: block device
-│       └── apps/              # aplikasi user
-│           ├── editor.c       # text editor (nano-like)
-│           └── asm.c          # assembler x86 interaktif
-├── include/                   # semua header file (.h)
-├── iso/boot/grub/             # GRUB config buat ISO
-├── .gitignore                 # git ignore rules
+│       ├── drivers/   # Hardware drivers
+│       │   ├── ata.c, block.c, idt.c, io.c
+│       │   ├── keyboard.c, pic.c, timer.c
+│       ├── fs/        # Filesystem
+│       │   ├── fd.c          # File descriptor layer
+│       │   └── vfs.c         # OAFS filesystem (hardened)
+│       ├── lib/       # Library
+│       │   ├── string.c, lexer.c, parser.c, codegen.c
+│       │   ├── klibc.c       # Kernel libc (printf/scanf)
+│       │   ├── heap.c        # Kernel heap (kmalloc/kfree)
+│       │   └── log.c         # Logging infrastructure
+│       ├── syscall/   # System call layer
+│       │   ├── syscall.c     # Dispatcher (23 syscalls)
+│       │   └── interrupt.asm # int 0x80 handler (ring 0+3)
+│       ├── tasks/     # Task management
+│       │   ├── task.c        # Scheduler + TCB
+│       │   └── task_user.c   # User mode task creation
+│       └── apps/      # User applications (kernel-level)
+│           ├── editor.c      # Text editor
+│           └── asm.c         # Built-in assembler
+├── include/           # Header files
+├── iso/               # GRUB boot files
+├── docs/              # Documentation (Jekyll)
 ├── Makefile
-├── readme.md
-└── disk.img                   # disk image buat filesystem (gak masuk git)
+└── readme.md
 ```
 
 ---
 
-## Cara Build & Jalanin
+## Cara Build & Run
 
 ### Prasyarat
-- GCC (cross-compiler atau native, yang penting support `-m32`)
-- NASM (assembler)
-- GRUB + `grub-mkrescue` (buat bikin ISO)
-- QEMU (`qemu-system-i386`)
-- `xorriso` (dependency grub-mkrescue)
-
-### Build
 ```bash
-make            # compile + bikin ISO
-make clean      # bersihin semua hasil build
+sudo apt install gcc nasm grub2-common xorriso qemu-system-x86
 ```
 
-### Jalanin
+### Build & Run
 ```bash
-make run        # langsung boot kernel di QEMU
+make          # build kernel.bin + oasis.iso
+make clean    # clean build artifacts
+make run      # boot di QEMU
 ```
 
-### Bikin ISO (opsional)
+### Test User Mode
 ```bash
-make iso        # bikin oasis.iso yang bisa di-burn atau di-boot via GRUB
+# Di shell OaSis:
+> edit /hello.asm       # tulis kode assembly
+> user /hello.asm       # jalanin di ring 3
 ```
 
 ---
 
 ## Catatan Teknis
 
-### Arsitektur
-- **32-bit x86** (i386)
-- **Monolithic kernel** - semua jalan di ring 0
-- **Preemptive multitasking** - timer interrupt bikin task switch otomatis
-- **No user mode** - semua task jalan di kernel mode (buat sekarang)
+### User Mode Entry/Exit Flow
+1. `user /file.asm` → `asm_assemble()` → `task_create_user()` → `paging_create_user_dir()`
+2. `switch_to_user()` → `iret` ke ring 3 (CPU pop CS=0x1B, SS=0x23)
+3. User code run with **dedicated page directory** (kernel pages hidden)
+4. On `SYSCALL_USER_EXIT`: handler overwrites iret frame with kernel values
+5. `iret` redirects to `user_return_to_shell` → restore CR3 → return to shell
 
-### Filesystem (OAFS)
-- Disk layout: `[Superblock] [Inode Table] [Data Blocks]`
-- Max 1024 inode
-- 12 direct block pointer per inode (max ~6KB per file)
-- Block size: 512 byte
-
-### System Call
-- Via `int 0x80` - eax = syscall number, ebx/ecx/edx = arguments
-- Return value di eax
+### Memory Layout
+```
+0x00000000 - 0x003FFFFF   Identity map (kernel binary + BSS)
+0x00400000 - 0x007FFFFF   Kernel extended map
+0x00800000 - 0x00EFFFFF   User code / heap (process isolation)
+0x00F00000 - 0x00FFFFFF   User stack (16KB)
+0x01000000 - 0x02000000   User brk heap (~16MB)
+0x02000000 - 0x03000000   Kernel heap (kmalloc)
+0x40000000                CODE_VIRT (assembler code buffer)
+0xC0000000                Higher-half kernel mapping
+```
 
 ---
 
 ## Rencana Ke Depan
 
-### Jangka Pendek
-- [ ] **User mode (ring 3)** - task jalan di user space, bukan kernel mode
-- [ ] **ELF loader** - bisa load dan execute binary ELF dari filesystem
-- [ ] **Indirect block** - support file lebih gede dari 6KB di OAFS
-- [ ] **Heap allocator** - `kmalloc`/`kfree` buat dynamic memory di kernel
-- [ ] **Better scheduler** - priority-based atau CFS-like scheduling
-
-### Jangka Menengah
-- [ ] **Networking** - minimal UDP/TCP stack
-- [ ] **VFS abstraction** - support multiple filesystem (FAT32, ext2)
-- [ ] **Framebuffer graphics** - keluar dari text mode, pake pixel
-- [ ] **Sound** - PC speaker atau basic audio driver
-- [ ] **Serial port** - output ke serial console buat debugging
-
-### Jangka Panjang
-- [ ] **SMP** - support multiple CPU core
-- [ ] **USB driver** - support USB keyboard/mouse/storage
-- [ ] **Shell scripting** - pipe, redirect, environment variable
-- [ ] **Package manager** - install program dari repository
-- [ ] **GUI** - simple windowing system
-
----
-
-## Kontribusi
-
-Ini proyek belajar, jadi feel free buat fork, modif, atau experiment. Kalo mau contribute, tinggal bikin branch, commit, dan PR. Gak ada aturan baku soal commit message - yang penting jelas.
+- [ ] **User space libc** — port `printf`/`scanf` ke user mode via syscalls
+- [ ] **Per-task page table** — true isolation with CR3 switching
+- [ ] **Stress test** — memory + scheduler stability
+- [ ] **TCP/IP stack** — networking support
+- [ ] **Indirect blocks** — support files > 6KB
+- [ ] **Better `occ` compiler** — arrays, structs, for loops
 
 ---
 
 ## Lisensi
 
-Bebas dipake buat belajar. No warranty - ini OS edukasi, bukan production-ready.
+Bebas dipakai untuk belajar. No warranty — ini OS edukasi, bukan production-ready.
 
 ---
 
-**Dibikin dengan kopi dan rasa penasaran.**
+**Dibikin dengan kopi, rasa penasaran, dan banyak debugging.** ☕

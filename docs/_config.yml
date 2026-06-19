@@ -1,37 +1,30 @@
 title: "OaSis Documentation"
-description: "Dokumentasi lengkap sistem operasi OaSis"
+description: "Dokumentasi lengkap sistem operasi edukasi OaSis"
 baseurl: "/OaSis"
 url: "https://yourusername.github.io"
 
 markdown: kramdown
-theme: minima
-
-# Jekyll defaults
-collections:
-  docs:
-    output: true
-
-permalink: pretty
+highlighter: rouge
 
 # Navigation
 nav:
   - title: Beranda
     url: /
   - title: Pendahuluan
-    url: /docs/01-pendahuluan/
+    url: /01-pendahuluan/
   - title: Arsitektur
-    url: /docs/02-arsitektur/
+    url: /02-arsitektur/
   - title: Booting
-    url: /docs/03-booting/
+    url: /03-booting/
   - title: Kernel
-    url: /docs/04-kernel/
+    url: /04-kernel/
   - title: Driver
-    url: /docs/05-driver/
+    url: /05-driver/
   - title: Filesystem
-    url: /docs/06-filesystem/
+    url: /06-filesystem/
   - title: Shell
-    url: /docs/07-shell/
+    url: /07-shell/
   - title: Aplikasi
-    url: /docs/08-apps/
+    url: /08-apps/
   - title: Build
-    url: /docs/09-build/
+    url: /09-build/
