@@ -11,21 +11,21 @@
 
 | Area | Status |
 |------|--------|
-| **Ring 3 User Mode** | ✅ User code jalan di ring 3, `user /file.asm` |
-| **Process Isolation** | ✅ Per-task page directory, user blocked dari kernel pages |
-| **System Calls** | ✅ 23 syscalls (0-22) via `int 0x80` |
-| **User Heap (brk)** | ✅ `SYSCALL_BRK` untuk expand heap user |
-| **User Space Utilities** | ✅ `cat`, `echo`, `write` jalan di ring 3 |
-| **Kernel Heap** | ✅ `kmalloc`/`kfree` / `kcalloc` / `krealloc` free-list allocator |
-| **Logging** | ✅ Circular buffer, `dmesg` command, auto-log exception |
-| **Filesystem (OAFS)** | ✅ Hardened: `touch`, `rm`, `ls`, `cd`, `write`, `cat` |
-| **occ Compiler** | ✅ Subset C: `int`, `if`, `while`, `printf`, `malloc` |
-| **Built-in Assembler** | ✅ `nasm` + `times` directive support |
-| **Mini Libc** | ✅ `printf`, `scanf`, `putchar`, `gets`, `sprintf`, `atoi` |
-| **GDT + TSS** | ✅ User segments (0x18/0x20) + Task State Segment |
-| **Task Scheduler** | ✅ Preemptive multitasking via timer IRQ |
-| **Text Editor** | ✅ Nano-like editor (`edit`) |
-| **Drivers** | ✅ Keyboard PS/2, VGA text mode, ATA/IDE, PIT timer, Block cache |
+| **Ring 3 User Mode** | [DONE] User code jalan di ring 3, `user /file.asm` |
+| **Process Isolation** | [DONE] Per-task page directory, user blocked dari kernel pages |
+| **System Calls** | [DONE] 23 syscalls (0-22) via `int 0x80` |
+| **User Heap (brk)** | [DONE] `SYSCALL_BRK` untuk expand heap user |
+| **User Space Utilities** | [DONE] `cat`, `echo`, `write` jalan di ring 3 |
+| **Kernel Heap** | [DONE] `kmalloc`/`kfree` / `kcalloc` / `krealloc` free-list allocator |
+| **Logging** | [DONE] Circular buffer, `dmesg` command, auto-log exception |
+| **Filesystem (OAFS)** | [DONE] Hardened: `touch`, `rm`, `ls`, `cd`, `write`, `cat` |
+| **occ Compiler** | [DONE] Subset C: `int`, `if`, `while`, `printf`, `malloc` |
+| **Built-in Assembler** | [DONE] `nasm` + `times` directive support |
+| **Mini Libc** | [DONE] `printf`, `scanf`, `putchar`, `gets`, `sprintf`, `atoi` |
+| **GDT + TSS** | [DONE] User segments (0x18/0x20) + Task State Segment |
+| **Task Scheduler** | [DONE] Preemptive multitasking via timer IRQ |
+| **Text Editor** | [DONE] Nano-like editor (`edit`) |
+| **Drivers** | [DONE] Keyboard PS/2, VGA text mode, ATA/IDE, PIT timer, Block cache |
 
 ---
 
@@ -237,4 +237,4 @@ Bebas dipakai untuk belajar. No warranty — ini OS edukasi, bukan production-re
 
 ---
 
-**Dibikin dengan kopi, rasa penasaran, dan banyak debugging.** ☕
+**Dibikin dengan kopi, rasa penasaran, dan banyak debugging.** 
