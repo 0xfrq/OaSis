@@ -1,311 +1,89 @@
-# system calls
+# System Calls
 
-dokumentasi ini ngebahas gimana aplikasi di OaSis bisa minta service dari kernel.
+OaSis menyediakan 23 system calls via `int 0x80`. System call adalah cara program (ring 0 maupun ring 3) meminta service dari kernel.
 
-## daftar isi
+## Mekanisme
 
-- [apa itu system call](#apa-itu-system-call)
-- [mekanisme](#mekanisme)
-- [syscall table](#syscall-table)
-- [implementasi](#implementasi)
-- [contoh penggunaan](#contoh-penggunaan)
+1. Program mengisi register: `eax` = nomor syscall, `ebx`-`edx` = argumen
+2. Eksekusi `int 0x80`
+3. CPU switch ke kernel mode (ring 0)
+4. Handler `int_80_wrapper` menyimpan register, mendeteksi ring asal (ring 0 vs ring 3)
+5. `int_80_handler` memanggil `syscall_dispatch()`
+6. Hasil dikembalikan via `eax`
 
----
+## Syscall Table
 
-## apa itu system call
+| # | Nama | Argumen | Keterangan |
+|---|------|---------|------------|
+| 0 | SYSCALL_WRITE | msg, len | Tulis ke stdout (legacy) |
+| 1 | SYSCALL_SLEEP | ms | Sleep (stub) |
+| 2 | SYSCALL_YIELD | - | Yield task ke scheduler |
+| 3 | SYSCALL_EXIT | exit_code | Exit process |
+| 4 | SYSCALL_GETPID | - | Dapatkan PID |
+| 5 | SYSCALL_FORK | - | Fork process |
+| 6 | SYSCALL_EXEC | program, size | Exec program |
+| 7 | SYSCALL_WAIT | status | Wait child process |
+| 8 | SYSCALL_GETPPID | - | Dapatkan parent PID |
+| 9 | SYSCALL_OPEN | path, flags | Buka file |
+| 10 | SYSCALL_CLOSE | fd | Tutup file descriptor |
+| 11 | SYSCALL_READ | fd, buf, count | Baca dari fd |
+| 12 | SYSCALL_WRITE_FD | fd, buf, count | Tulis ke fd |
+| 13 | SYSCALL_PIPE | pipefd[2] | Buat pipe |
+| 14 | SYSCALL_DUP | oldfd | Duplicate fd |
+| 15 | SYSCALL_DUP2 | oldfd, newfd | Dup ke fd spesifik |
+| 16 | SYSCALL_SEEK | fd, offset, whence | Seek di fd |
+| 17 | SYSCALL_FDINFO | - | Debug: print fd table |
+| 18 | SYSCALL_BLOCK_READ | block, buf | Baca block device |
+| 19 | SYSCALL_BLOCK_WRITE | block, buf | Tulis ke block device |
+| 20 | SYSCALL_BLOCK_FLUSH | - | Flush block cache |
+| 21 | SYSCALL_USER_EXIT | - | Exit user mode -> return to shell |
+| 22 | SYSCALL_BRK | addr | Expand/shrink user heap |
 
-**system call** adalah cara aplikasi minta kernel buat ngelakuin sesuatu yang butuh privilege.
+## Dari Ring 3 (User Mode)
 
-### kenapa butuh system call?
-
-aplikasi jalan di user mode (kalo ada), gak bisa langsung akses hardware atau memory kernel. jadi aplikasi harus minta kernel via system call.
-
-**catatan:** OaSis belum punya user mode, tapi system call tetep dipake buat consistency dan future-proofing.
-
-### contoh system call
-
-- `write()` - tulis ke file/screen
-- `read()` - baca dari file/keyboard
-- `open()` - buka file
-- `close()` - tutup file
-- `exit()` - keluar dari process
-
-## mekanisme
-
-OaSis pake **interrupt 0x80** buat system call.
-
-### flow
-
-```
-aplikasi
-  ↓
-setup parameters di registers
-  ↓
+Program user memanggil syscall via `int 0x80`:
+```asm
+mov eax, 0        ; SYSCALL_WRITE
+mov ebx, msg      ; pointer string
+mov ecx, 5        ; panjang
 int 0x80
-  ↓
-cpu switch ke kernel mode
-  ↓
-kernel syscall handler
-  ↓
-kernel proses request
-  ↓
-kernel return result
-  ↓
-aplikasi continue
 ```
 
-### parameter passing
-
-parameter di-pass via registers:
-
+Untuk exit dan balik ke shell:
 ```asm
-mov eax, syscall_number  ; nomor syscall
-mov ebx, param1          ; parameter 1
-mov ecx, param2          ; parameter 2
-mov edx, param3          ; parameter 3
-int 0x80                 ; trigger syscall
-; result di eax
+mov eax, 21       ; SYSCALL_USER_EXIT
+int 0x80
 ```
 
-### contoh: write syscall
+## Dari Ring 0 (Kernel/Assembler)
 
+Syscall juga bisa dipanggil dari kernel mode via inline assembly.
+
+## External Symbols (asm.c)
+
+Built-in assembler menyediakan external symbol yang resolve ke fungsi kernel:
+
+| Symbol | Fungsi | Deskripsi |
+|--------|--------|-----------|
+| `_printf` | `klibc_printf` | Printf via VGA |
+| `_putchar` | `klibc_putchar` | Putchar via VGA |
+| `_puts` | `klibc_puts` | Puts via VGA |
+| `_malloc` | `klibc_malloc` | Alokasi heap kernel |
+| `_free` | `klibc_free` | Free heap kernel |
+| `_calloc` | `klibc_calloc` | Calloc kernel |
+| `_realloc` | `klibc_realloc` | Realloc kernel |
+| `_sys_open` | `syscall_open` | Open file |
+| `_sys_read` | `syscall_read` | Read file |
+| `_sys_write_fd` | `syscall_write_fd` | Write file |
+| `_sys_close` | `syscall_close` | Close file |
+| `_usr_printf` | `usr_printf` | Printf via syscall |
+| `_usr_puts` | `usr_puts` | Puts via syscall |
+
+Contoh dari assembly:
 ```asm
-; write(fd, buffer, length)
-mov eax, 1          ; syscall number (write)
-mov ebx, 1          ; fd (1 = stdout)
-mov ecx, message    ; buffer pointer
-mov edx, 13         ; length
-int 0x80            ; call kernel
-; eax = bytes written
+push 0
+push path
+call _sys_open
+add esp, 8
+; eax = fd
 ```
-
-## syscall table
-
-daftar system call yang di-support OaSis:
-
-### i/o syscalls
-
-| no | nama | parameter | return | deskripsi |
-|----|------|-----------|--------|-----------|
-| 1 | `write` | ebx=fd, ecx=buf, edx=len | bytes written | tulis ke file/fd |
-| 2 | `read` | ebx=fd, ecx=buf, edx=len | bytes read | baca dari file/fd |
-| 3 | `open` | ebx=path, ecx=flags | fd | buka file |
-| 4 | `close` | ebx=fd | 0/-1 | tutup file |
-| 5 | `seek` | ebx=fd, ecx=offset, edx=whence | new offset | move file position |
-
-### process syscalls
-
-| no | nama | parameter | return | deskripsi |
-|----|------|-----------|--------|-----------|
-| 10 | `exit` | ebx=status | - | keluar dari task |
-| 11 | `fork` | - | pid | duplicate task |
-| 12 | `getpid` | - | pid | dapetin task id |
-| 13 | `wait` | ebx=pid | status | tunggu task selesai |
-| 14 | `yield` | - | 0 | give up cpu |
-| 15 | `sleep` | ebx=ticks | 0 | sleep for ticks |
-
-### memory syscalls (planned)
-
-| no | nama | parameter | return | deskripsi |
-|----|------|-----------|--------|-----------|
-| 20 | `mmap` | ebx=addr, ecx=len | ptr | map memory |
-| 21 | `munmap` | ebx=addr, ecx=len | 0/-1 | unmap memory |
-
-## implementasi
-
-### syscall handler
-
-```c
-void syscall_handler(registers_t *regs) {
-    uint32_t syscall_num = regs->eax;
-    uint32_t result = 0;
-    
-    switch (syscall_num) {
-        case 1:  // write
-            result = sys_write(regs->ebx, regs->ecx, regs->edx);
-            break;
-            
-        case 2:  // read
-            result = sys_read(regs->ebx, regs->ecx, regs->edx);
-            break;
-            
-        case 3:  // open
-            result = sys_open(regs->ebx, regs->ecx);
-            break;
-            
-        case 4:  // close
-            result = sys_close(regs->ebx);
-            break;
-            
-        case 10: // exit
-            sys_exit(regs->ebx);
-            break;
-            
-        case 14: // yield
-            task_yield();
-            result = 0;
-            break;
-            
-        case 15: // sleep
-            task_sleep(regs->ebx);
-            result = 0;
-            break;
-            
-        default:
-            // unknown syscall
-            result = -1;
-            break;
-    }
-    
-    // return result via eax
-    regs->eax = result;
-}
-```
-
-### syscall implementation
-
-#### write
-
-```c
-uint32_t sys_write(uint32_t fd, const char *buf, uint32_t len) {
-    if (fd == 1) {
-        // stdout
-        for (uint32_t i = 0; i < len; i++) {
-            vga_putchar(buf[i]);
-        }
-        return len;
-    } else {
-        // file
-        return vfs_write(fd, buf, len);
-    }
-}
-```
-
-#### read
-
-```c
-uint32_t sys_read(uint32_t fd, char *buf, uint32_t len) {
-    if (fd == 0) {
-        // stdin
-        return keyboard_read(buf, len);
-    } else {
-        // file
-        return vfs_read(fd, buf, len);
-    }
-}
-```
-
-#### open
-
-```c
-uint32_t sys_open(const char *path, uint32_t flags) {
-    return vfs_open(path, flags);
-}
-```
-
-#### close
-
-```c
-uint32_t sys_close(uint32_t fd) {
-    return vfs_close(fd);
-}
-```
-
-## contoh penggunaan
-
-### contoh 1: write ke stdout
-
-```c
-void task_example(void) {
-    const char *msg = "hello world\n";
-    uint32_t len = 12;
-    
-    // inline assembly
-    asm volatile(
-        "mov $1, %%eax\n"      // syscall: write
-        "mov $1, %%ebx\n"      // fd: stdout
-        "mov %0, %%ecx\n"      // buffer
-        "mov %1, %%edx\n"      // length
-        "int $0x80\n"          // trigger syscall
-        :
-        : "r"(msg), "r"(len)
-        : "eax", "ebx", "ecx", "edx"
-    );
-}
-```
-
-### contoh 2: c wrapper
-
-```c
-// wrapper function
-int32_t write(int fd, const char *buf, int len) {
-    int32_t result;
-    asm volatile(
-        "mov $1, %%eax\n"
-        "mov %1, %%ebx\n"
-        "mov %2, %%ecx\n"
-        "mov %3, %%edx\n"
-        "int $0x80\n"
-        "mov %%eax, %0\n"
-        : "=r"(result)
-        : "r"(fd), "r"(buf), "r"(len)
-        : "eax", "ebx", "ecx", "edx"
-    );
-    return result;
-}
-
-// usage
-void task_example(void) {
-    write(1, "hello\n", 6);
-}
-```
-
-### contoh 3: sleep
-
-```c
-void task_example(void) {
-    write(1, "sleeping...\n", 12);
-    
-    // sleep 1 second (100 ticks * 10ms)
-    asm volatile(
-        "mov $15, %%eax\n"
-        "mov $100, %%ebx\n"
-        "int $0x80\n"
-        :
-        :
-        : "eax", "ebx"
-    );
-    
-    write(1, "awake!\n", 7);
-}
-```
-
----
-
-## testing syscall
-
-buat test syscall, kamu bisa bikin task yang call syscall:
-
-```c
-void test_task(void) {
-    const char *msg = "testing syscall\n";
-    
-    // call write syscall
-    asm volatile(
-        "mov $1, %%eax\n"
-        "mov $1, %%ebx\n"
-        "mov %0, %%ecx\n"
-        "mov $16, %%edx\n"
-        "int $0x80\n"
-        :
-        : "r"(msg)
-        : "eax", "ebx", "ecx", "edx"
-    );
-    
-    task_exit();
-}
-```
-
----
-
-**kembali ke:** [kernel →](readme.md)
