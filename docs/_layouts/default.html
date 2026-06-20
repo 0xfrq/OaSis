@@ -72,34 +72,18 @@ blockquote {
   margin: 12px 0; background: var(--bg-soft); border-radius: 0 var(--radius) var(--radius) 0;
 }
 
-/* Code block */
-.code-block {
-  border: 1px solid var(--border); border-radius: 9px;
-  overflow: hidden; margin: 18px 0;
+/* Pre blocks — styled directly */
+pre {
+  background: var(--bg-code); color: #e2e8f0; padding: 16px;
+  border-radius: var(--radius); overflow-x: auto; margin: 16px 0;
+  font-size: 13px; line-height: 1.55;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  border: 1px solid var(--border);
   box-shadow: 0 3px 12px rgba(0,0,0,.06);
 }
-.code-top {
-  background: var(--bg-code-bar); padding: 7px 14px;
-  display: flex; align-items: center; justify-content: space-between;
-}
-.code-lang {
-  font-size: 11px; font-weight: 500; color: var(--text-4);
-  text-transform: uppercase; letter-spacing: .05em;
-}
-.copy-btn {
-  background: rgba(255,255,255,.08); border: none; cursor: pointer;
-  color: var(--text-4); font-size: 11px; font-family: 'Inter', sans-serif;
-  padding: 3px 10px; border-radius: 4px; transition: all .15s;
-}
-.copy-btn:hover { background: rgba(255,255,255,.14); color: #fff; }
-.code-body { overflow-x: auto; }
-.code-body pre {
-  background: var(--bg-code); color: #e2e8f0; padding: 16px;
-  margin: 0; font-size: 13px; line-height: 1.55;
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-}
-.code-body pre code {
-  background: none; border: none; padding: 0; color: inherit;
+pre code {
+  background: none !important; border: none !important;
+  padding: 0 !important; color: inherit !important;
   font-family: inherit; font-size: inherit;
 }
 .hl-c { color: #6b7280; } .hl-k { color: #f472b6; }
