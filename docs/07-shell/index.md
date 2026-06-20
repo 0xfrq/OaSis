@@ -1,53 +1,56 @@
 ---
 layout: default
-title: Shell
+title: shell
 ---
 
-# 07. Shell
+# shell
 
-## Command Interface
+shell berjalan sebagai infinite loop di `kernel_main()`. pake `keyboard_getchar()` buat baca input.
 
-The shell runs as an infinite loop in `kernel_main()`:
+## command
 
+semua command diimplementasikan sebagai if-else chain:
+
+```c
+if (strcmp(input, "help") == 0) { ... }
+else if (starts_with(input, "edit ")) { ... }
+else if (starts_with(input, "cat ")) { ... }
+else if (starts_with(input, "nasm ")) { ... }
+else if (starts_with(input, "occ ")) { ... }
+else if (starts_with(input, "user ")) { ... }
+else { vga_print("perintah tidak dikenal\n"); }
 ```
-while (1) {
-    c = keyboard_getchar();
-    if (c == '\n') { execute_command(input); index = 0; }
-    else { input[index++] = c; echo; }
-}
-```
 
-## Available Commands
+### file operations
 
-### File Operations
-| Command | Description |
-|---------|-------------|
-| `ls [path]` | List directory (color-coded: yellow=dir, white=file) |
-| `cd <path>` | Change directory (supports ..) |
-| `pwd` | Print working directory |
-| `mkdir <path>` | Create directory |
-| `touch <file>` | Create empty file |
-| `rm <file>` | Remove file |
-| `cat <file>` | Display file contents |
-| `write <file> <text>` | Write text to file (overwrites) |
-| `append <file> <text>` | Append text to file |
-| `hexdump <file>` | Show file in hex |
+| command | fungsi |
+|---------|--------|
+| `ls [path]` | vfs_list() -> print color-coded |
+| `cd <path>` | vfs_chdir() |
+| `pwd` | vfs_getcwd() |
+| `mkdir <p>` | vfs_mkdir() |
+| `touch <p>` | vfs_create() |
+| `rm <p>` | vfs_unlink() |
+| `cat <p>` | vfs_open -> read loop -> print |
+| `write <p> <t>` | vfs_open + vfs_write |
+| `echo <text>` | vga_print() |
+| `hexdump <p>` | read + hex print |
 
-### Development
-| Command | Description |
-|---------|-------------|
-| `edit <file>` | Text editor (nano-like) |
-| `nasm <file>` | Assemble and run .asm (ring 0) |
-| `user <file>` | Assemble and run .asm (ring 3) |
-| `occ <file>` | Compile and run .c |
+### development
 
-### System
-| Command | Description |
-|---------|-------------|
-| `help` | Show commands |
-| `clear` | Clear screen |
-| `uptime` | System uptime |
-| `meminfo` | Physical memory info |
-| `dmesg` | Kernel log |
-| `syscall` | List all syscalls |
-| `echo <text>` | Print text |
+| command | fungsi |
+|---------|--------|
+| `edit <p>` | editor_run() -> nano-like editor |
+| `nasm <p>` | asm_run_file() -> assemble + run di ring 0 |
+| `user <p>` | run_user_test() -> assemble + run di ring 3 |
+| `occ <p>` | run_occ() -> compile c + assemble + run |
+
+### system
+
+| command | fungsi |
+|---------|--------|
+| `dmesg` | log_dump() |
+| `syscall` | print 23 syscall |
+| `uptime` | ticks / 100 = detik |
+| `meminfo` | pmm info |
+| `clear` | vga_clear() |

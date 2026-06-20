@@ -1,30 +1,29 @@
 ---
 layout: default
-title: Pendahuluan
+title: pendahuluan
 ---
 
-# 01. Pendahuluan
+# pendahuluan
 
-## Tentang OaSis
+oasis adalah sistem operasi 32-bit x86 yang dibangun dari nol.
 
-OaSis adalah sistem operasi 32-bit untuk arsitektur x86 (i386) yang dibangun dari nol untuk tujuan edukasi. Seluruh kode ditulis dalam bahasa C dan assembly, dengan minimum dependencies.
+## tujuan
 
-## Tujuan Pembelajaran
+- memahami booting x86 (real mode -> protected mode)
+- konsep segmentation, gdt, idt
+- physical memory management dengan bitmap
+- paging dan virtual memory
+- interrupt handling (hardware dan software)
+- task scheduling dan context switching
+- filesystem design (inode-based)
+- system call interface (int 0x80)
+- user mode (ring 3) execution
+- process isolation via page tables
+- device driver programming
 
-- Memahami proses booting x86 (Real Mode -> Protected Mode)
-- Konsep segmentation dan paging
-- Physical dan virtual memory management
-- Interrupt handling (hardware dan software)
-- Task scheduling dan context switching
-- Filesystem design (inode-based)
-- System call interface
-- User mode (ring 3) execution
-- Proses isolasi via page tables
-- Device driver programming
+## prasyarat
 
-## Prasyarat
-
-- Pengetahuan dasar C programming
-- Konsep dasar computer architecture
-- Familiar dengan x86 assembly (bantuan)
-- Linux environment untuk build
+- dasar c programming
+- konsep computer architecture
+- familiar dengan x86 assembly (membantu)
+- linux environment untuk build

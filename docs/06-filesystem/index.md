@@ -1,71 +1,76 @@
 ---
 layout: default
-title: Filesystem
+title: filesystem
 ---
 
-# 06. Filesystem (OAFS)
+# filesystem (oafs)
 
-## OAFS Architecture
+oafs adalah inode-based filesystem kustom di `src/kernel/fs/vfs.c`.
 
-OAFS (Oasis File System) is a custom inode-based filesystem.
-
-### On-Disk Layout
+## on-disk layout
 
 ```
-[Block 0: Superblock] [Blocks 1..N: Inode Table] [Blocks N+1..8192: Data Blocks]
+[block 128: superblock] [129..: inode table] [..8192: data blocks]
 ```
 
-### Superblock
-```c
-uint32_t magic;         // VFS_MAGIC (0x0AF6)
-uint32_t total_blocks;  // 8192
-uint32_t total_inodes;  // 1024
-uint32_t free_inodes;
-uint32_t free_blocks;
+block size: 512 byte. total block: 8192 -> 4mb filesystem.
+
+superblock:
+- magic (0x0AF6)
+- free_inodes, free_blocks
+- total_inodes (1024), total_blocks
+
+inode:
+- type (0=free, 1=file, 2=dir)
+- size
+- parent_inode
+- direct[12] -> 12 * 512 = 6kb
+- indirect -> 128 * 512 = 64kb
+- total max file: 70kb
+- name[32]
+
+directory entry:
+- inode_number (4 byte)
+- name[32]
+- max 14 entry per block -> 168 entries dengan multi-block
+
+## key algorithm
+
+### get_block_ptr(in, blk_idx)
+
+ambil block number untuk offset tertentu:
+- kalo blk_idx < 12 -> direct[blk_idx]
+- kalo blk_idx >= 12 -> baca indirect block, ambil ptr[blk_idx - 12]
+
+### set_block_ptr(in, blk_idx)
+
+sama kaya get_block_ptr, tapi alloc block kalo belum ada.
+
+### dir_read_entries
+
+baca semua block directory (up to 12 block), concatenate entries.
+
+### dir_write_entries
+
+tulis entries ke multiple block sesuai kebutuhan.
+
+## fd layer
+
+di `src/kernel/fs/fd.c`. fd layer duduk di atas vfs.
+
+- konversi posix flags ke vfs flags
+- track file offset, flags, ref_count
+- fd 0/1/2 = console (stdin/stdout/stderr)
+
+## shell commands terkait
+
 ```
-
-### Inode Structure
-```c
-uint32_t type;          // FILE (1), DIR (2), FREE (0)
-uint32_t size;          // File size in bytes
-uint32_t parent_inode;  // Parent directory inode
-uint32_t direct[12];    // Direct block pointers (12 x 512 = 6KB)
-uint32_t indirect;      // Indirect block pointer (128 x 512 = 64KB)
-uint32_t ctime;         // Creation time
-uint32_t mtime;         // Modification time
-char name[32];          // File/directory name
+touch <file>   -> vfs_create()
+cat <file>     -> vfs_open(O_RDONLY) + vfs_read()
+write <f> <t>  -> vfs_open(O_WRITE|O_CREATE|O_TRUNC) + vfs_write()
+ls [path]      -> vfs_list()
+cd <path>      -> vfs_chdir()
+rm <file>      -> vfs_unlink()
+mkdir <p>      -> vfs_mkdir()
+rmdir <p>      -> vfs_rmdir()
 ```
-
-Total file capacity: 12 direct + 128 indirect = 70KB per file.
-
-### Directory Entries
-```c
-uint32_t inode_number;  // Inode number
-char name[32];           // Entry name
-```
-
-Directories use up to 12 data blocks (168 entries max).
-
-## Key Operations
-
-### Open (`vfs_open`)
-1. Resolve path via `vfs_resolve_path()`.
-2. If not found and `O_CREATE` is set, create the file.
-3. Allocate an open file entry (up to 32).
-
-### Read (`vfs_read`)
-1. Look up block at file offset via `get_block_ptr()`.
-2. For direct blocks (0-11): read from `in->direct[blk_idx]`.
-3. For indirect blocks (12+): read indirect block pointer table, then the data block.
-4. Copy chunk to user buffer.
-
-### Write (`vfs_write`)
-1. Allocate blocks on demand via `set_block_ptr()`.
-2. For indirect blocks, alloc the indirect block if needed, then alloc data blocks.
-3. Track file size as `max(write_end, current_size)`.
-
-### Unlink (`vfs_unlink`)
-1. Resolve path and validate it's a file.
-2. Remove directory entry first (atomic).
-3. Free all data blocks (direct + indirect).
-4. Free inode. Save inode table and superblock.
