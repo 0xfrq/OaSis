@@ -4,383 +4,802 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OaSis OS — Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+/* ─── Reset & Base ─── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --green: #10b981; --green-hover: #059669;
-  --text: #111827; --text-2: #374151; --text-3: #6b7280; --text-4: #9ca3af;
-  --border: #e5e7eb; --bg: #ffffff; --bg-soft: #f9fafb; --bg-code: #1a1b2e;
-  --sidebar: 260px; --header-h: 54px; --radius: 8px;
+  --green:        #10b981;
+  --green-hover:  #059669;
+  --green-light:  #ecfdf5;
+  --green-border: #a7f3d0;
+  --green-muted:  #6ee7b7;
+  --text:         #111827;
+  --text-2:       #374151;
+  --text-3:       #6b7280;
+  --text-4:       #9ca3af;
+  --border:       #e5e7eb;
+  --bg:           #ffffff;
+  --bg-soft:      #f9fafb;
+  --bg-code:      #1a1b2e;
+  --bg-code-bar:  #252636;
+  --sidebar:      240px;
+  --toc:          188px;
+  --header-h:     58px;
+  --radius:       8px;
 }
 body {
-  font-family: 'Inter', -apple-system, sans-serif; color: var(--text);
-  background: var(--bg); font-size: 14px; line-height: 1.6; display: flex;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 14px;
+  line-height: 1.6;
 }
-a { text-decoration: none; color: var(--green); }
-a:hover { text-decoration: underline; }
+a { text-decoration: none; color: inherit; }
 code {
-  font-family: 'JetBrains Mono', monospace; font-size: 12px;
-  background: var(--bg-soft); border: 1px solid var(--border);
-  padding: 1px 5px; border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--text-2);
 }
-pre {
-  background: var(--bg-code); color: #e2e8f0; padding: 16px;
-  border-radius: var(--radius); overflow-x: auto; font-size: 13px;
-  line-height: 1.5; margin: 12px 0;
+kbd {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-bottom: 2px solid #d1d5db;
+  padding: 1px 7px;
+  border-radius: 4px;
+  color: var(--text-3);
 }
-pre code { background: none; border: none; padding: 0; color: inherit; }
-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
-th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; }
-th { background: var(--green); color: #fff; font-weight: 600; }
-tr:nth-child(even) td { background: var(--bg-soft); }
-::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 
-/* Header */
-.header {
-  position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
-  border-bottom: 1px solid var(--border); background: var(--bg);
-  display: flex; align-items: center; padding: 0 24px; z-index: 100;
-  gap: 12px;
-}
-.header h1 { font-size: 16px; font-weight: 700; color: var(--text); }
-.header h1 span { color: var(--green); }
+/* ─── SVG Icons ─── */
+.icon { width: 15px; height: 15px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
-/* Sidebar */
-.sidebar {
-  position: fixed; top: var(--header-h); left: 0; bottom: 0;
-  width: var(--sidebar); border-right: 1px solid var(--border);
-  overflow-y: auto; padding: 16px 0; background: var(--bg);
+/* ─── Header ─── */
+header {
+  position: sticky; top: 0; z-index: 200;
+  height: var(--header-h);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 20px; gap: 12px;
 }
-.sidebar a {
-  display: block; padding: 6px 20px; font-size: 13px; color: var(--text-3);
-  border-left: 2px solid transparent; transition: all 0.15s;
+.logo {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 700; font-size: 15px; color: var(--text);
+  flex-shrink: 0;
 }
-.sidebar a:hover { color: var(--text); background: var(--bg-soft); text-decoration: none; }
-.sidebar a.active { color: var(--green); border-left-color: var(--green); font-weight: 600; }
-.sidebar .section {
-  font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 1px; color: var(--text-4); padding: 12px 20px 4px;
+.logo-icon {
+  width: 30px; height: 30px;
+  background: var(--green); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+}
+.logo-icon svg { width: 18px; height: 18px; stroke: white; fill: none; stroke-width: 2; stroke-linecap: round; }
+.logo-name { color: var(--text); }
+.logo-name span { color: var(--green); }
+
+.h-nav {
+  display: flex; align-items: center; gap: 24px;
+  margin-left: auto;
+}
+.h-nav a {
+  font-size: 13.5px; color: var(--text-3);
+  transition: color .15s; white-space: nowrap;
+}
+.h-nav a:hover { color: var(--text); }
+.btn-start {
+  background: var(--green); color: white;
+  border: none; cursor: pointer;
+  padding: 7px 15px; border-radius: 6px;
+  font-size: 13.5px; font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  transition: background .15s; white-space: nowrap;
+}
+.btn-start:hover { background: var(--green-hover); }
+.hamburger {
+  display: none; background: none; border: none;
+  cursor: pointer; padding: 4px;
+  color: var(--text-3); flex-shrink: 0;
+}
+.hamburger:hover { color: var(--text); }
+
+/* ─── Layout ─── */
+.layout {
+  display: grid;
+  grid-template-columns: var(--sidebar) 1fr var(--toc);
+  min-height: calc(100vh - var(--header-h));
+  max-width: 1280px; margin: 0 auto;
 }
 
-/* Main content */
-main {
-  margin-left: var(--sidebar); margin-top: var(--header-h);
-  padding: 32px 48px; max-width: 860px; flex: 1;
+/* ─── Left Sidebar ─── */
+.sb-left {
+  border-right: 1px solid var(--border);
+  padding: 20px 14px;
+  position: sticky; top: var(--header-h);
+  height: calc(100vh - var(--header-h));
+  overflow-y: auto;
 }
-h1 { font-size: 28px; margin: 0 0 8px; }
-h2 { font-size: 20px; margin: 28px 0 10px; color: var(--text-2); }
-h3 { font-size: 16px; margin: 20px 0 8px; }
-p { margin: 8px 0; color: var(--text-2); }
-ul, ol { margin: 8px 0; padding-left: 24px; }
-li { margin-bottom: 4px; }
+.sb-section {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--green);
+  margin-bottom: 6px; margin-top: 20px; padding: 0 8px;
+}
+.sb-section:first-child { margin-top: 0; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 8px; border-radius: 6px;
+  color: var(--text-3); font-size: 13.5px;
+  cursor: pointer; transition: all .15s;
+  user-select: none;
+}
+.nav-item:hover { background: var(--bg-soft); color: var(--text-2); }
+.nav-item.active { background: var(--green-light); color: var(--green); font-weight: 500; }
+.nav-item .chevron {
+  margin-left: auto; font-size: 9px;
+  transition: transform .22s; color: var(--text-4);
+  display: flex; align-items: center;
+}
+.nav-item .chevron.open { transform: rotate(180deg); }
+
+.sub-nav { overflow: hidden; max-height: 0; transition: max-height .28s ease; padding-left: 24px; }
+.sub-nav.open { max-height: 300px; }
+.sub-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 8px; border-radius: 5px;
+  color: var(--text-3); font-size: 13px;
+  cursor: pointer; transition: all .15s;
+}
+.sub-item:hover { background: var(--bg-soft); color: var(--text-2); }
+.sub-item.active { background: var(--green-light); color: var(--green); font-weight: 500; }
+
+.welcome-card {
+  margin-top: 22px; padding: 14px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 12.5px; color: var(--text-3); line-height: 1.55;
+}
+.welcome-card a {
+  display: inline-block; margin-top: 8px;
+  color: var(--text-2); font-weight: 600;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* ─── Main Content ─── */
+main { padding: 32px 42px; overflow-x: hidden; }
+
+.breadcrumb {
+  font-size: 12.5px; font-weight: 500;
+  color: var(--green); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 5px;
+}
+.page-header { display: flex; align-items: center; gap: 11px; margin-bottom: 14px; flex-wrap: wrap; }
+.page-header h1 { font-size: 22px; font-weight: 700; color: var(--text); }
+
 .badge {
-  display: inline-block; padding: 1px 8px; border-radius: 999px;
-  font-size: 11px; font-weight: 600;
+  display: inline-flex; align-items: center;
+  padding: 3px 11px; border-radius: 20px;
+  font-size: 12px; font-weight: 500; border: 1px solid;
 }
-.badge-ok { background: #ecfdf5; color: #059669; }
-blockquote {
-  border-left: 3px solid var(--green); padding: 8px 16px;
-  margin: 12px 0; background: var(--bg-soft); border-radius: 0 var(--radius) var(--radius) 0;
+.badge-active { background: var(--green-light); color: var(--green); border-color: var(--green-border); }
+.badge-beta  { background: #fef3c7; color: #d97706; border-color: #fde68a; }
+.badge-stable{ background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
+.badge-new   { background: #fdf4ff; color: #a855f7; border-color: #e9d5ff; }
+
+.page-desc {
+  font-size: 14px; color: var(--text-3);
+  line-height: 1.72; margin-bottom: 22px; max-width: 660px;
 }
 
-@media (max-width: 768px) {
-  .sidebar { display: none; }
-  main { margin-left: 0; padding: 24px 16px; }
+/* Info box */
+.info-box {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 13px 15px;
+  background: #f0fdf4; border: 1px solid var(--green-border);
+  border-radius: var(--radius);
+  font-size: 13px; color: var(--text-3);
+  margin-bottom: 24px; line-height: 1.55;
+}
+.info-icon {
+  width: 19px; height: 19px; border-radius: 50%;
+  background: var(--green); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; flex-shrink: 0; margin-top: 1px;
+}
+.info-box strong { color: var(--text-2); }
+
+/* Preview box */
+.preview-box {
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--bg-soft); padding: 22px;
+  margin-bottom: 34px;
+}
+.preview-inner {
+  background: var(--bg-code); border-radius: 9px;
+  overflow: hidden;
+  box-shadow: 0 6px 28px rgba(0,0,0,.18);
+}
+.win-bar {
+  background: var(--bg-code-bar);
+  padding: 9px 14px;
+  display: flex; align-items: center; gap: 7px;
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dot-r { background: #ff5f57; } .dot-y { background: #febc2e; } .dot-g { background: #28c840; }
+.win-title {
+  margin: 0 auto; font-size: 12px;
+  color: #6b7280; font-family: 'JetBrains Mono', monospace;
+}
+.win-body {
+  padding: 16px 18px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px; line-height: 1.85; color: #cdd6f4;
+}
+.t-green  { color: #a6e3a1; } .t-blue   { color: #89dceb; }
+.t-yellow { color: #f9e2af; } .t-pink   { color: #f38ba8; }
+.t-purple { color: #cba6f7; } .t-dim    { color: #4b5278; }
+.t-prompt { color: var(--green); font-weight: 500; }
+
+/* Section content */
+.sec-h2 {
+  font-size: 17px; font-weight: 600; color: var(--text);
+  margin: 32px 0 10px; padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.sec-h2:first-of-type { margin-top: 0; border-top: none; }
+.sec-p { font-size: 13.5px; color: var(--text-3); line-height: 1.7; margin-bottom: 14px; }
+
+/* Code blocks */
+.code-block {
+  background: var(--bg-code); border-radius: var(--radius);
+  overflow: hidden; margin-bottom: 20px; position: relative;
+  font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+}
+.code-top {
+  background: var(--bg-code-bar); padding: 9px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.code-lang { font-size: 11.5px; color: #6b7280; font-family: 'Inter', sans-serif; }
+.copy-btn {
+  background: transparent; border: 1px solid #3a3b4e;
+  color: #8b92b7; padding: 3px 10px;
+  border-radius: 4px; font-size: 11px; cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all .15s;
+}
+.copy-btn:hover { border-color: var(--green); color: var(--green); }
+.copy-btn.ok    { border-color: var(--green); color: var(--green); }
+.code-body { padding: 14px 18px; overflow-x: auto; line-height: 1.85; }
+.code-body pre { margin: 0; }
+.hl-c { color: #4b5278; }       /* comment */
+.hl-k { color: #cba6f7; }       /* keyword */
+.hl-s { color: #a6e3a1; }       /* string */
+.hl-n { color: #89dceb; }       /* name/cmd */
+.hl-f { color: #f9e2af; }       /* flag */
+.hl-p { color: #fab387; }       /* prop/key */
+.hl-v { color: #cdd6f4; }       /* value */
+
+/* Table */
+.req-table { width: 100%; border-collapse: collapse; margin-bottom: 22px; font-size: 13px; }
+.req-table thead tr { background: var(--bg-soft); }
+.req-table th {
+  text-align: left; padding: 10px 14px;
+  color: var(--text-3); font-weight: 500;
+  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+}
+.req-table th:first-child { border-radius: 6px 0 0 0; }
+.req-table th:last-child  { border-radius: 0 6px 0 0; }
+.req-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-2); }
+.req-table tr:last-child td { border-bottom: none; }
+.req-table tbody tr:hover td { background: var(--bg-soft); }
+.chip {
+  display: inline-flex; padding: 1px 8px;
+  border-radius: 4px; font-size: 11.5px; font-weight: 500;
+}
+.chip-green { background: var(--green-light); color: var(--green); }
+.chip-blue  { background: #eff6ff; color: #3b82f6; }
+
+/* Steps */
+.steps { list-style: none; margin-bottom: 22px; }
+.step {
+  display: flex; gap: 14px; margin-bottom: 20px;
+}
+.step-num {
+  width: 27px; height: 27px; border-radius: 50%; flex-shrink: 0;
+  background: var(--green-light); color: var(--green);
+  font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 1px;
+}
+.step-body h3 { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+.step-body p  { font-size: 13px; color: var(--text-3); line-height: 1.6; }
+
+/* Divider */
+.divider { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+/* ─── Right Sidebar TOC ─── */
+.sb-right {
+  padding: 28px 14px;
+  position: sticky; top: var(--header-h);
+  height: calc(100vh - var(--header-h));
+  overflow-y: auto; border-left: 1px solid var(--border);
+}
+.toc-title {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3);
+  margin-bottom: 10px; padding: 0 8px;
+}
+.toc-list { list-style: none; }
+.toc-link {
+  display: block; padding: 4px 8px;
+  font-size: 13px; color: var(--text-3);
+  border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
+  transition: all .15s; line-height: 1.4;
+  margin-bottom: 2px;
+}
+.toc-link:hover { color: var(--text-2); background: var(--bg-soft); }
+.toc-link.active { color: var(--green); border-left-color: var(--green); background: var(--green-light); }
+.toc-link.sub { padding-left: 18px; font-size: 12.5px; }
+
+/* ─── Overlay ─── */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.45); z-index: 100;
+}
+.overlay.show { display: block; }
+
+/* ─── Responsive ─── */
+@media (max-width: 1060px) {
+  .layout { grid-template-columns: var(--sidebar) 1fr; }
+  .sb-right { display: none; }
+}
+@media (max-width: 720px) {
+  .layout { grid-template-columns: 1fr; }
+  .sb-left {
+    position: fixed; left: -260px; top: 0;
+    height: 100vh; width: 252px; z-index: 150;
+    background: var(--bg); border-right: 1px solid var(--border);
+    padding-top: calc(var(--header-h) + 14px);
+    box-shadow: 4px 0 20px rgba(0,0,0,.08);
+    transition: left .28s ease;
+  }
+  .sb-left.open { left: 0; }
+  .hamburger { display: flex; align-items: center; justify-content: center; }
+  .h-nav a:not(.always) { display: none; }
+  main { padding: 24px 18px; }
+}
+@media (max-width: 460px) {
+  main { padding: 18px 14px; }
+  .page-header h1 { font-size: 19px; }
+  .preview-box { padding: 14px; }
+  .win-body { font-size: 11px; padding: 12px; }
 }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>Oasis<span>OS</span></h1>
-</div>
+<!-- Overlay -->
+<div class="overlay" id="overlay" onclick="closeSb()"></div>
 
-<div class="sidebar">
-  <div class="section">Getting Started</div>
-  <a href="#overview" class="active">Overview</a>
-  <a href="#build">Build & Run</a>
-  <a href="#structure">Project Structure</a>
+<!-- ─── HEADER ─── -->
+<header>
+  <button class="hamburger" onclick="toggleSb()" aria-label="Toggle navigation">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
 
-  <div class="section">Architecture</div>
-  <a href="#boot">Boot & Kernel</a>
-  <a href="#memory">Memory Management</a>
-  <a href="#paging">Paging & Isolation</a>
-  <a href="#syscalls">System Calls</a>
-  <a href="#user-mode">User Mode (Ring 3)</a>
-  <a href="#scheduler">Task Scheduler</a>
+  <a href="#" class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" width="18" height="18">
+        <path d="M2 17c2-3 5-5 10-5s8 2 10 5" stroke="white" fill="none" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M5 12c1.5-2.5 3.5-4 7-4s5.5 1.5 7 4" stroke="white" fill="none" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M9 7c.5-1.5 1.5-2.5 3-2.5s2.5 1 3 2.5" stroke="white" fill="none" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <span class="logo-name">OaSis<span>OS</span></span>
+  </a>
 
-  <div class="section">Filesystem</div>
-  <a href="#oafs">OAFS Overview</a>
-  <a href="#commands">Shell Commands</a>
+  <nav class="h-nav">
+    <a href="#" class="always">Latest Updates</a>
+    <a href="#">Send Feedback</a>
+    <a href="#">Login</a>
+    <button class="btn-start">Get Started</button>
+  </nav>
+</header>
 
-  <div class="section">Development</div>
-  <a href="#occ">occ Compiler</a>
-  <a href="#asm">Built-in Assembler</a>
-  <a href="#editor">Text Editor</a>
-  <a href="#logging">Logging</a>
+<!-- ─── LAYOUT ─── -->
+<div class="layout">
 
-  <div class="section">Reference</div>
-  <a href="#syscall-table">Syscall Table</a>
-  <a href="#extern-symbols">External Symbols</a>
-  <a href="#memory-layout">Memory Layout</a>
-</div>
+  <!-- ── LEFT SIDEBAR ── -->
+  <aside class="sb-left" id="sidebar">
 
-<main>
+    <div class="sb-section">Documentation</div>
 
-<h1>OaSis OS</h1>
-<p style="color:var(--text-3); margin-bottom: 24px; font-size: 15px;">
-  32-bit x86 educational operating system built from scratch.
-</p>
+    <a class="nav-item" href="#" onclick="setPage(this)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </a>
+    <a class="nav-item" href="#" onclick="setPage(this)">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Getting Started
+    </a>
+    <a class="nav-item" href="#" onclick="setPage(this)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Installation
+    </a>
 
-<h2 id="overview">Overview</h2>
-<p>
-  OaSis is a minimal operating system for x86 (i386) that boots via GRUB,
-  runs in 32-bit protected mode, and includes a shell, filesystem, C compiler,
-  built-in assembler, and user mode (ring 3) support.
-</p>
+    <!-- Features toggle -->
+    <div class="nav-item" onclick="toggleSub('sub-features','chev-features')">
+      <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Features
+      <span class="chevron open" id="chev-features">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </span>
+    </div>
+    <div class="sub-nav open" id="sub-features">
+      <div class="sub-item active" onclick="setSubPage(this)">File Manager</div>
+      <div class="sub-item" onclick="setSubPage(this)">Terminal</div>
+      <div class="sub-item" onclick="setSubPage(this)">App Store</div>
+      <div class="sub-item" onclick="setSubPage(this)">System Settings</div>
+    </div>
 
-<h3>Status</h3>
-<table>
-<tr><th>Component</th><th>Status</th></tr>
-<tr><td>Ring 3 User Mode</td><td><span class="badge badge-ok">DONE</span></td></tr>
-<tr><td>23 System Calls (int 0x80)</td><td><span class="badge badge-ok">DONE</span></td></tr>
-<tr><td>Process Isolation (per-task CR3)</td><td><span class="badge badge-ok">DONE</span></td></tr>
-<tr><td>OAFS Filesystem + Indirect Blocks</td><td><span class="badge badge-ok">DONE</span></td></tr>
-<tr><td>occ C Compiler (int, char, for, if, while, params)</td><td><span class="badge badge-ok">DONE</span></td></tr>
-<tr><td>Built-in x86 Assembler + times directive</td><td><span class="badge badge-ok">DONE</span></td></tr>
-<tr><td>Kernel Heap (kmalloc/kfree)</td><td><span class="badge badge-ok">DONE</span></td></tr>
-<tr><td>Logging (dmesg)</td><td><span class="badge badge-ok">DONE</span></td></tr>
-<tr><td>GDT + TSS + User Segments</td><td><span class="badge badge-ok">DONE</span></td></tr>
-<tr><td>Text Editor (edit)</td><td><span class="badge badge-ok">DONE</span></td></tr>
-</table>
+    <a class="nav-item" href="#" onclick="setPage(this)">
+      <svg class="icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      All Components
+    </a>
 
-<h2 id="build">Build & Run</h2>
-<p>Prerequisites:</p>
-<pre><code>sudo apt install gcc nasm grub2-common xorriso qemu-system-x86</code></pre>
+    <div class="sb-section" style="margin-top:22px">Newsroom</div>
 
-<p>Build and run:</p>
-<pre><code>make          # build kernel.bin + oasis.iso
-make clean    # clean artifacts
-make run      # boot in QEMU</code></pre>
+    <a class="nav-item" href="#" onclick="setPage(this)">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      Latest Updates
+    </a>
+    <a class="nav-item" href="#" onclick="setPage(this)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Support
+    </a>
 
-<h2 id="structure">Project Structure</h2>
-<pre><code>OaSis/
-src/boot/          entry.asm, linker.ld
-src/kernel/core/   kernel.c, gdt.c, paging.c, pmm.c, vga.c, memory.c
-src/kernel/drivers/ ata.c, block.c, idt.c, io.c, keyboard.c, pic.c, timer.c
-src/kernel/fs/     fd.c, vfs.c (OAFS)
-src/kernel/lib/    string.c, lexer.c, parser.c, codegen.c, klibc.c, heap.c, log.c, usrlib.c
-src/kernel/syscall/ syscall.c, interrupt.asm
-src/kernel/tasks/  task.c, task_user.c
-src/kernel/apps/   editor.c, asm.c (assembler)
-include/           header files
-docs/              documentation (this site)
-Makefile           build system</code></pre>
+    <div class="welcome-card">
+      Welcome! Follow the instructions below to install and explore OaSis OS on your machine.
+      <br>
+      <a href="#">Read more</a>
+    </div>
+  </aside>
 
-<h2 id="boot">Boot & Kernel</h2>
-<p>
-  OaSis boots via GRUB (Multiboot-compliant). The boot sequence:
-</p>
-<ol>
-  <li>GRUB loads kernel.bin at 1MB physical</li>
-  <li>Entry point sets up stack, calls kernel_main</li>
-  <li>GDT, IDT, PIC, timer, keyboard initialized</li>
-  <li>E820 memory detection, PMM, paging enabled</li>
-  <li>OAFS filesystem loaded, syscalls initialized</li>
-  <li>Shell prompt appears</li>
-</ol>
+  <!-- ── MAIN CONTENT ── -->
+  <main>
 
-<h2 id="memory">Memory Management</h2>
-<p>
-  Physical Memory Manager (PMM) uses a bitmap allocator.
-  Paging uses 4KB pages with identity mapping for the first 4MB
-  and higher-half kernel mapping at 0xC0000000+.
-  Kernel heap allocator (kmalloc/kfree) uses a free-list with splitting and coalescing.
-</p>
+    <div class="breadcrumb">Features</div>
 
-<h2 id="paging">Paging & Process Isolation</h2>
-<p>
-  Each user task gets a cloned page directory from the kernel.
-  Kernel pages (identity map, higher-half) are mapped <strong>without</strong> PTE_USER.
-  User pages (code, stack, heap) are mapped <strong>with</strong> PTE_USER.
-  The task scheduler switches CR3 when switching between tasks with different page directories.
-</p>
+    <div class="page-header">
+      <h1>File Manager</h1>
+      <span class="badge badge-active">Active</span>
+    </div>
 
-<h2 id="syscalls">System Calls</h2>
-<p>
-  23 system calls via <code>int 0x80</code>. Arguments in registers:
-  <code>eax</code> = syscall number, <code>ebx- edx</code> = args.
-  Return value in <code>eax</code>.
-</p>
-<p>
-  The handler detects whether the call came from ring 0 or ring 3
-  by checking CS at [esp+36], and handles the different iret frame layouts accordingly.
-</p>
+    <p class="page-desc">
+      OaSis OS File Manager is a modern, dual-panel file browser built for speed and simplicity.
+      Navigate your filesystem, preview files instantly, and run commands from the built-in terminal panel —
+      all in one unified interface.
+    </p>
 
-<h2 id="user-mode">User Mode (Ring 3)</h2>
-<p>
-  User code runs via the <code>user /file.asm</code> command.
-  Flow: assemble -> create user task with cloned page dir -> switch_to_user() via iret to ring 3.
-  On <code>SYSCALL_USER_EXIT</code> (21), the handler redirects iret to <code>user_return_to_shell</code>
-  which restores CR3 and returns to the shell.
-</p>
+    <div class="info-box">
+      <div class="info-icon">✓</div>
+      <div>
+        <strong>Info:</strong> File Manager is bundled by default in OaSis OS <strong>v2.0+</strong>.
+        On older releases, install it manually via the App Store or run
+        <code>sudo oasis-pkg install file-manager</code>.
+      </div>
+    </div>
 
-<h2 id="scheduler">Task Scheduler</h2>
-<p>
-  Preemptive round-robin scheduler driven by timer IRQ (100Hz).
-  Tasks are linked in a circular list. <code>task_switch()</code> selects the next task
-  and updates CR3 for per-task page directories.
-</p>
+    <!-- ─ Preview ─ -->
+    <div class="preview-box">
+      <div class="preview-inner">
+        <div class="win-bar">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+          <div class="win-title">OaSis File Manager  —  ~/Documents</div>
+        </div>
+        <div class="win-body">
+<span class="t-dim">┌─── Navigator ───────────────────┬─── /home/user/Documents ──────────────────────┐</span>
+<span class="t-dim">│</span> <span class="t-green">📁 Projects</span>                      <span class="t-dim">│</span>  <span class="t-v" style="color:#cdd6f4">Name</span>              <span class="t-yellow">Size</span>      <span class="t-dim">Modified</span>          <span class="t-dim">│</span>
+<span class="t-dim">│</span> <span class="t-v" style="color:#cdd6f4">📁 Downloads</span>                     <span class="t-dim">│</span>  <span class="t-blue">📄 report.pdf</span>     <span class="t-yellow">2.4 MB</span>    <span class="t-dim">Jun 18, 2026</span>      <span class="t-dim">│</span>
+<span class="t-dim">│</span> <span class="t-v" style="color:#cdd6f4">📁 Pictures</span>                      <span class="t-dim">│</span>  <span class="t-blue">📝 notes.md</span>       <span class="t-yellow">12 KB</span>     <span class="t-dim">Jun 20, 2026</span>      <span class="t-dim">│</span>
+<span class="t-dim">│</span> <span class="t-v" style="color:#cdd6f4">📁 Music</span>                         <span class="t-dim">│</span>  <span class="t-blue">🖼  design.png</span>     <span class="t-yellow">4.1 MB</span>    <span class="t-dim">Jun 15, 2026</span>      <span class="t-dim">│</span>
+<span class="t-dim">│</span> <span class="t-v" style="color:#cdd6f4">📄 README.txt</span>                    <span class="t-dim">│</span>  <span class="t-blue">📦 backup.tar.gz</span>  <span class="t-yellow">18 MB</span>     <span class="t-dim">Jun 10, 2026</span>      <span class="t-dim">│</span>
+<span class="t-dim">└─────────────────────────────────┴──────────────────────────────────────────────────┘</span>
+<span class="t-dim">  Split View: ON   │   5 items   │   💾 78% disk used   │   <span class="t-green">Cloud Sync: ✓ Active</span>   </span>
+        </div>
+      </div>
+    </div>
 
-<h2 id="oafs">OAFS Filesystem</h2>
-<p>
-  Oasis File System — custom inode-based filesystem on the block device.
-  1024 inodes, 8192 blocks (512 bytes/block). 12 direct blocks + 1 indirect block (128 pointers)
-  per file = ~70KB max file size. Directories support up to 168 entries (12 blocks x 14 entries).
-</p>
+    <!-- ─ System Requirements ─ -->
+    <h2 class="sec-h2" id="requirements">System Requirements</h2>
+    <p class="sec-p">Verify your system meets these requirements before installing File Manager.</p>
 
-<h2 id="commands">Shell Commands</h2>
-<pre><code>help           show commands
-clear          clear screen
-ls [path]      list directory (color-coded)
-cd <path>      change directory
-pwd            print working dir
-mkdir <path>   create directory
-touch <file>   create file
-rm <file>      remove file
-cat <file>     display file
-write <f> <t>  write text to file
-echo <text>    print text
-hexdump <file> hex dump file
-edit <file>    text editor
-nasm <file>    assemble and run .asm
-user <file>    run .asm in ring 3
-occ <file>     compile and run .c
-dmesg          show kernel log
-syscall        list all syscalls
-meminfo        show memory info</code></pre>
+    <table class="req-table">
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Minimum</th>
+          <th>Recommended</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>OaSis OS</strong></td>
+          <td>v1.8 or later</td>
+          <td><span class="chip chip-green">v2.0+</span></td>
+        </tr>
+        <tr>
+          <td><strong>RAM</strong></td>
+          <td>512 MB</td>
+          <td>2 GB</td>
+        </tr>
+        <tr>
+          <td><strong>Disk Space</strong></td>
+          <td>200 MB free</td>
+          <td>500 MB free</td>
+        </tr>
+        <tr>
+          <td><strong>Architecture</strong></td>
+          <td>x86_64 / ARM64</td>
+          <td><span class="chip chip-blue">Multi-core x86_64</span></td>
+        </tr>
+        <tr>
+          <td><strong>Network</strong></td>
+          <td>Not required</td>
+          <td>Required for Cloud Sync</td>
+        </tr>
+      </tbody>
+    </table>
 
-<h2 id="occ">occ Compiler</h2>
-<p>
-  occ (OaSis C Compiler) compiles a subset of C to x86 assembly,
-  which is then assembled by the built-in assembler.
-</p>
-<p><strong>Supported:</strong></p>
-<ul>
-  <li>Types: <code>int</code>, <code>char</code></li>
-  <li>Control: <code>if/else</code>, <code>while</code>, <code>for</code></li>
-  <li>Functions with parameters (<code>int add(int a, int b)</code>)</li>
-  <li>Array subscript (<code>arr[i]</code>)</li>
-  <li>String literals, arithmetic, comparisons</li>
-  <li>External symbols: printf, malloc, free, sys_open, sys_read, sys_write_fd</li>
-</ul>
+    <!-- ─ Installation ─ -->
+    <h2 class="sec-h2" id="installation">Installation</h2>
+    <p class="sec-p">Use the OaSis package manager to install File Manager. Open a terminal and run the following commands:</p>
 
-<pre><code>int main() {
-    printf("hello world");
-}
-// > occ hello.c</code></pre>
+    <div class="code-block">
+      <div class="code-top">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" onclick="copyCode(this,'c1')">Copy</button>
+      </div>
+      <div class="code-body"><pre id="c1"><span class="hl-c"># Update package list first</span>
+<span class="hl-n">sudo</span> oasis-pkg <span class="hl-k">update</span>
 
-<h2 id="asm">Built-in Assembler</h2>
-<p>
-  Full x86 32-bit assembler supporting mov, add, sub, cmp, xor, and/or,
-  jmp/je/jne/call/ret, push/pop/pusha/popa, times directive,
-  db (data bytes), segment registers, labels, and external symbols.
-</p>
+<span class="hl-c"># Install File Manager</span>
+<span class="hl-n">sudo</span> oasis-pkg <span class="hl-k">install</span> <span class="hl-s">file-manager</span>
 
-<h2 id="editor">Text Editor</h2>
-<p>
-  Nano-like editor with arrow key navigation, Ctrl+S (save), Ctrl+X (exit),
-  status bar, scrolling, and tab support (inserts 4 spaces).
-</p>
+<span class="hl-c"># Confirm version</span>
+<span class="hl-n">oasis-fm</span> <span class="hl-f">--version</span>
+<span class="hl-c"># → OaSis File Manager v2.4.1</span></pre></div>
+    </div>
 
-<h2 id="logging">Logging</h2>
-<p>
-  Circular buffer (4096 bytes). Auto-logs exceptions with register dump.
-  View with <code>dmesg</code>. Safe for interrupt context.
-</p>
+    <!-- ─ Configuration ─ -->
+    <h2 class="sec-h2" id="configuration">Configuration</h2>
+    <p class="sec-p">After installation, edit the config file at <code>~/.config/oasis/file-manager.yaml</code> to customize the application to your workflow:</p>
 
-<h2 id="syscall-table">Syscall Table</h2>
-<table>
-<tr><th>#</th><th>Name</th><th>Description</th></tr>
-<tr><td>0</td><td>SYSCALL_WRITE</td><td>Write to stdout</td></tr>
-<tr><td>1</td><td>SYSCALL_SLEEP</td><td>Sleep (ms)</td></tr>
-<tr><td>2</td><td>SYSCALL_YIELD</td><td>Yield task</td></tr>
-<tr><td>3</td><td>SYSCALL_EXIT</td><td>Exit process</td></tr>
-<tr><td>4</td><td>SYSCALL_GETPID</td><td>Get PID</td></tr>
-<tr><td>5</td><td>SYSCALL_FORK</td><td>Fork process</td></tr>
-<tr><td>6</td><td>SYSCALL_EXEC</td><td>Exec program</td></tr>
-<tr><td>7</td><td>SYSCALL_WAIT</td><td>Wait child</td></tr>
-<tr><td>8</td><td>SYSCALL_GETPPID</td><td>Get parent PID</td></tr>
-<tr><td>9</td><td>SYSCALL_OPEN</td><td>Open file</td></tr>
-<tr><td>10</td><td>SYSCALL_CLOSE</td><td>Close fd</td></tr>
-<tr><td>11</td><td>SYSCALL_READ</td><td>Read from fd</td></tr>
-<tr><td>12</td><td>SYSCALL_WRITE_FD</td><td>Write to fd</td></tr>
-<tr><td>13</td><td>SYSCALL_PIPE</td><td>Create pipe</td></tr>
-<tr><td>14</td><td>SYSCALL_DUP</td><td>Duplicate fd</td></tr>
-<tr><td>15</td><td>SYSCALL_DUP2</td><td>Dup2 fd</td></tr>
-<tr><td>16</td><td>SYSCALL_SEEK</td><td>Seek fd</td></tr>
-<tr><td>17</td><td>SYSCALL_FDINFO</td><td>Debug fd table</td></tr>
-<tr><td>18</td><td>SYSCALL_BLOCK_READ</td><td>Read block</td></tr>
-<tr><td>19</td><td>SYSCALL_BLOCK_WRITE</td><td>Write block</td></tr>
-<tr><td>20</td><td>SYSCALL_BLOCK_FLUSH</td><td>Flush block cache</td></tr>
-<tr><td>21</td><td>SYSCALL_USER_EXIT</td><td>Exit user mode -> shell</td></tr>
-<tr><td>22</td><td>SYSCALL_BRK</td><td>User heap brk</td></tr>
-</table>
+    <div class="code-block">
+      <div class="code-top">
+        <span class="code-lang">yaml</span>
+        <button class="copy-btn" onclick="copyCode(this,'c2')">Copy</button>
+      </div>
+      <div class="code-body"><pre id="c2"><span class="hl-c"># ~/.config/oasis/file-manager.yaml</span>
 
-<h2 id="extern-symbols">External Symbols</h2>
-<p>Available from built-in assembler:</p>
-<table>
-<tr><th>Symbol</th><th>Function</th><th>Description</th></tr>
-<tr><td>_printf</td><td>klibc_printf</td><td>Printf via VGA (ring 0)</td></tr>
-<tr><td>_putchar</td><td>klibc_putchar</td><td>Putchar via VGA</td></tr>
-<tr><td>_puts</td><td>klibc_puts</td><td>Puts via VGA</td></tr>
-<tr><td>_malloc</td><td>klibc_malloc</td><td>Kernel heap alloc</td></tr>
-<tr><td>_free</td><td>klibc_free</td><td>Kernel heap free</td></tr>
-<tr><td>_sys_open</td><td>syscall_open</td><td>Open file (ring 0/3)</td></tr>
-<tr><td>_sys_read</td><td>syscall_read</td><td>Read file</td></tr>
-<tr><td>_sys_write_fd</td><td>syscall_write_fd</td><td>Write to fd</td></tr>
-<tr><td>_usr_printf</td><td>usr_printf</td><td>Printf via syscall</td></tr>
-<tr><td>_usr_puts</td><td>usr_puts</td><td>Puts via syscall</td></tr>
-</table>
+<span class="hl-p">theme:</span>         <span class="hl-s">dark</span>            <span class="hl-c"># dark | light | system</span>
+<span class="hl-p">split_view:</span>    <span class="hl-k">true</span>
+<span class="hl-p">show_hidden:</span>   <span class="hl-k">false</span>
+<span class="hl-p">default_path:</span>  <span class="hl-s">~/Documents</span>
+<span class="hl-p">sort_by:</span>       <span class="hl-s">name</span>            <span class="hl-c"># name | size | date | type</span>
 
-<h2 id="memory-layout">Memory Layout</h2>
-<pre><code>0x00000000 - 0x003FFFFF   Identity map (kernel + BSS)
-0x00800000 - 0x00EFFFFF   User code pages
-0x00F00000 - 0x00FFFFFF   User stack (16KB)
-0x01000000 - 0x02000000   User heap (brk)
-0x02000000 - 0x03000000   Kernel heap (kmalloc)
-0x40000000                CODE_VIRT (assembler buffer)
-0xC0000000+               Higher-half kernel</code></pre>
+<span class="hl-p">terminal_panel:</span>
+  <span class="hl-p">enabled:</span>     <span class="hl-k">true</span>
+  <span class="hl-p">height:</span>      <span class="hl-f">200</span>
+  <span class="hl-p">shell:</span>       <span class="hl-s">/bin/oash</span>
 
-<p style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--text-4); font-size: 12px;">
-  OaSis OS — Documentation. Built from scratch for learning.
-</p>
+<span class="hl-p">cloud_sync:</span>
+  <span class="hl-p">provider:</span>    <span class="hl-s">oasis-cloud</span>
+  <span class="hl-p">auto_sync:</span>   <span class="hl-k">true</span>
+  <span class="hl-p">interval:</span>    <span class="hl-f">300</span>             <span class="hl-c"># seconds</span></pre></div>
+    </div>
 
-</main>
+    <!-- ─ First Launch ─ -->
+    <h2 class="sec-h2" id="first-launch">First Launch</h2>
+    <p class="sec-p">Follow these steps to get started after a fresh installation.</p>
+
+    <ol class="steps">
+      <li class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h3>Open File Manager</h3>
+          <p>Click the File Manager icon in the OaSis dock, or press <kbd>Super</kbd> and search for "File Manager". You can also launch it from the terminal with <code>oasis-fm</code>.</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h3>Connect Cloud Storage</h3>
+          <p>Navigate to <strong>Settings → Cloud Sync</strong> and sign in with your OaSis Cloud account to enable automatic file synchronization across your devices.</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h3>Enable Split View</h3>
+          <p>Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd>, or go to <strong>View → Split View</strong> to activate dual-panel mode for efficient file transfers and comparison.</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h3>Set Up Preferences</h3>
+          <p>Open <strong>Edit → Preferences</strong> to configure your default directory, file sorting, display density, and custom keyboard shortcuts.</p>
+        </div>
+      </li>
+    </ol>
+
+    <!-- ─ Scripting API ─ -->
+    <h2 class="sec-h2" id="scripting">Scripting & Automation</h2>
+    <p class="sec-p">File Manager exposes a native scripting API via the <strong>OaSis Script Engine</strong>. Automate file operations in your <code>.osc</code> scripts:</p>
+
+    <div class="code-block">
+      <div class="code-top">
+        <span class="code-lang">javascript</span>
+        <button class="copy-btn" onclick="copyCode(this,'c3')">Copy</button>
+      </div>
+      <div class="code-body"><pre id="c3"><span class="hl-c">// OaSis Script Engine — automate.osc</span>
+<span class="hl-k">import</span> { FileManager } <span class="hl-k">from</span> <span class="hl-s">'@oasis/file-manager'</span>;
+
+<span class="hl-k">const</span> <span class="hl-n">fm</span> = <span class="hl-k">new</span> FileManager();
+
+<span class="hl-c">// Navigate to a directory</span>
+<span class="hl-n">fm</span>.navigate(<span class="hl-s">'/home/user/Projects'</span>);
+
+<span class="hl-c">// List files with metadata</span>
+<span class="hl-k">const</span> files = <span class="hl-k">await</span> <span class="hl-n">fm</span>.listFiles({ hidden: <span class="hl-k">false</span> });
+files.forEach(f =&gt; console.log(f.name, f.size));
+
+<span class="hl-c">// Copy file to backup folder</span>
+<span class="hl-k">await</span> <span class="hl-n">fm</span>.copy(<span class="hl-s">'./report.pdf'</span>, <span class="hl-s">'./backups/report.pdf'</span>);
+
+<span class="hl-c">// Trigger cloud sync</span>
+<span class="hl-k">await</span> <span class="hl-n">fm</span>.cloudSync.push();</pre></div>
+    </div>
+
+    <!-- ─ Keyboard Shortcuts ─ -->
+    <h2 class="sec-h2" id="shortcuts">Keyboard Shortcuts</h2>
+    <p class="sec-p">Speed up your workflow with these built-in keyboard shortcuts:</p>
+
+    <table class="req-table">
+      <thead>
+        <tr><th>Action</th><th>Shortcut</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Split View</td>
+          <td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td>
+          <td>Toggle dual-panel mode</td>
+        </tr>
+        <tr>
+          <td>New Folder</td>
+          <td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd></td>
+          <td>Create a new directory</td>
+        </tr>
+        <tr>
+          <td>Quick Preview</td>
+          <td><kbd>Space</kbd></td>
+          <td>Preview selected file instantly</td>
+        </tr>
+        <tr>
+          <td>Terminal Panel</td>
+          <td><kbd>Ctrl</kbd>+<kbd>`</kbd></td>
+          <td>Open/close built-in terminal</td>
+        </tr>
+        <tr>
+          <td>Go to Path</td>
+          <td><kbd>Ctrl</kbd>+<kbd>L</kbd></td>
+          <td>Type a path directly in the address bar</td>
+        </tr>
+      </tbody>
+    </table>
+
+  </main>
+
+  <!-- ── RIGHT SIDEBAR (TOC) ── -->
+  <aside class="sb-right">
+    <div class="toc-title">Table of Content</div>
+    <ul class="toc-list">
+      <li><a class="toc-link active" href="#overview">Overview</a></li>
+      <li><a class="toc-link" href="#requirements">System Requirements</a></li>
+      <li><a class="toc-link sub" href="#requirements">Minimum</a></li>
+      <li><a class="toc-link sub" href="#requirements">Recommended</a></li>
+      <li><a class="toc-link" href="#installation">Installation</a></li>
+      <li><a class="toc-link" href="#configuration">Configuration</a></li>
+      <li><a class="toc-link" href="#first-launch">First Launch</a></li>
+      <li><a class="toc-link" href="#scripting">Scripting</a></li>
+      <li><a class="toc-link" href="#shortcuts">Shortcuts</a></li>
+    </ul>
+  </aside>
+
+</div><!-- /.layout -->
 
 <script>
-// Highlight sidebar link on scroll
-document.addEventListener('DOMContentLoaded', function() {
-  var links = document.querySelectorAll('.sidebar a');
-  var sections = [];
-  links.forEach(function(a) {
-    var href = a.getAttribute('href');
-    if (href && href.startsWith('#')) {
-      var el = document.getElementById(href.substring(1));
-      if (el) sections.push({link: a, el: el});
-    }
-  });
-  window.addEventListener('scroll', function() {
-    var current = '';
-    sections.forEach(function(s) {
-      if (window.scrollY >= s.el.offsetTop - 80) current = s.link;
-    });
-    links.forEach(function(l) { l.classList.remove('active'); });
-    if (current) current.classList.add('active');
-  });
-});
-</script>
+/* ── Sidebar toggle ── */
+function toggleSb() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+function closeSb() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
 
+/* ── Sub-menu toggle ── */
+function toggleSub(subId, chevId) {
+  const sub  = document.getElementById(subId);
+  const chev = document.getElementById(chevId);
+  sub.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+
+/* ── Nav active states ── */
+function setPage(el) {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  document.querySelectorAll('.sub-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+}
+function setSubPage(el) {
+  document.querySelectorAll('.sub-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+}
+
+/* ── Copy code ── */
+function copyCode(btn, id) {
+  const text = document.getElementById(id).innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ Copied';
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('ok'); }, 1800);
+  }).catch(() => {
+    /* fallback */
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✓ Copied'; btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('ok'); }, 1800);
+  });
+}
+
+/* ── TOC scroll spy ── */
+const headings = [...document.querySelectorAll('main [id]')];
+const tocLinks  = [...document.querySelectorAll('.toc-link')];
+
+function syncToc() {
+  let active = null;
+  const offset = 90;
+  headings.forEach(h => {
+    if (h.getBoundingClientRect().top <= offset) active = h.id;
+  });
+  tocLinks.forEach(l => {
+    const target = l.getAttribute('href')?.replace('#','');
+    l.classList.toggle('active', target === active);
+  });
+  if (!active) tocLinks[0]?.classList.add('active');
+}
+window.addEventListener('scroll', syncToc, { passive: true });
+syncToc();
+</script>
 </body>
 </html>
