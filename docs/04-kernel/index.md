@@ -3,341 +3,659 @@ layout: default
 title: kernel
 ---
 
-# 04. kernel
+# kernel
 
-dokumentasi ini mencakup semua subsystem inti kernel oasis. kernel adalah bagian terbesar dari sistem dengan 33 file sumber.
+dokumentasi ini mencakup semua subsystem kernel oasis. kernel adalah bagian terbesar dengan 33 file sumber (c, assembly, header).
 
-## daftar isi
+## gdt -- global descriptor table
 
-- [gdt -- global descriptor table](#gdt)
-- [idt & interrupt handling](#idt)
-- [memory management](#memory)
-- [paging & process isolation](#paging)
-- [task scheduler](#task-scheduler)
-- [system calls](#system-calls)
-- [heap allocator (kmalloc)](#heap-allocator)
-- [filesystem -- oafs](#filesystem-oafs)
-- [built-in assembler (asm.c)](#built-in-assembler)
-- [klibc -- kernel libc](#klibc)
-- [usrlib -- user space library](#usrlib)
-- [logging infrastructure](#logging)
-- [shell & command interface](#shell)
+file: `src/kernel/core/gdt.c`, header: `include/gdt.h`
 
----
+### struktur
 
-## gdt
-
-gdt (global descriptor table) di-setup di `src/kernel/core/gdt.c` dan dipanggil dari `kernel_main()` paling awal sebelum idt. gdt di-inisialisasi dengan 6 entry yang overwrite gdt bawaan grub.
-
-### layout gdt (6 entry)
-
-```
-0x00: NULL descriptor       -- required, gak dipake
-0x08: kernel code (ring 0)  -- akses = 0x9A (present|ring0|code|execute/read)
-0x10: kernel data (ring 0)  -- akses = 0x92 (present|ring0|data|read/write)
-0x18: user code   (ring 3)  -- akses = 0xFA (present|ring3|code|execute/read)
-0x20: user data   (ring 3)  -- akses = 0xF2 (present|ring3|data|read/write)
-0x28: tss                  -- akses = 0x89, gran = 0x40
-```
-
-semua segmen flat: base=0, limit=4gb (0xFFFFF dengan granularity 4kb).
-
-### tss (task state segment)
-
-tss disimpan sebagai `static uint32_t tss[32]` di gdt.c. dua field yang penting:
-
-```
-tss[1] = kernel_esp  -- esp0, stack kernel buat ring3 -> ring0 transition
-tss[2] = kernel_ss   -- ss0, = 0x10
-```
-
-tss selector (0x28) di-load ke task register via instruksi `ltrw`.
-
-### fungsi gdt_set_entry()
+6 entry gdt, tiap entry 8 byte:
 
 ```c
-static void gdt_set_entry(int num, uint32_t base, uint32_t limit,
-                          uint8_t access, uint8_t gran) {
-    gdt_entries[num].base_low     = base & 0xFFFF;
-    gdt_entries[num].base_mid     = (base >> 16) & 0xFF;
-    gdt_entries[num].base_high    = (base >> 24) & 0xFF;
-    gdt_entries[num].limit_low    = limit & 0xFFFF;
-    gdt_entries[num].granularity  = (limit >> 16) & 0x0F;
-    gdt_entries[num].granularity |= gran & 0xF0;
-    gdt_entries[num].access       = access;
-}
+typedef struct {
+    uint16_t limit_low;    // limit 16 bit bawah
+    uint16_t base_low;     // base 16 bit bawah
+    uint8_t  base_mid;     // base 8 bit tengah
+    uint8_t  access;       // access byte (present, dpl, type)
+    uint8_t  granularity;  // granularity + limit 4 bit atas
+    uint8_t  base_high;    // base 8 bit atas
+} __attribute__((packed)) gdt_entry_t;
 ```
 
-### lgdt
+### access byte format
+
+bit:
+- 7: present (harus 1)
+- 6-5: dpl (00=ring0, 11=ring3)
+- 4: s (1=code/data, 0=system)
+- 3: type (code=1, data=0)
+- 2: c/d (code: conforming, data: direction)
+- 1: r/w (code: readable, data: writable)
+- 0: a (accessed, set oleh cpu)
+
+code segment 0x9A = 10011010
+- present | dpl 0 | code/data | code | execute/read
+
+data segment 0x92 = 10010010
+- present | dpl 0 | code/data | data | read/write
+
+user code 0xFA = 11111010
+- present | dpl 3 | code/data | code | execute/read
+
+user data 0xF2 = 11110010
+- present | dpl 3 | code/data | data | read/write
+
+### tss
 
 ```c
-asm volatile(
-    "lgdtl %0\n"
-    "movl $0x10, %%eax\n"    /* reload ds/es/fs/gs dengan kernel data */
-    "movw %%ax, %%ds\n"
-    "movw %%ax, %%es\n"
-    "movw %%ax, %%fs\n"
-    "movw %%ax, %%gs\n"
-    "ljmp $0x08, $.reload\n" /* far jump buat reload cs */
-    ".reload:\n"
-    : : "m"(gdt_ptr) : "eax", "memory"
-);
+static uint32_t tss[32] = {0};  // 104 byte, cukup buat 26 uint32_t
 ```
 
-selector constants (di `include/gdt.h`):
-- `KERNEL_CS = 0x08`
-- `KERNEL_DS = 0x10`
-- `USER_CS   = 0x1B`  (0x18 | 0x03 = ring 3)
-- `USER_DS   = 0x23`  (0x20 | 0x03 = ring 3)
-- `TSS_SEL   = 0x28`
+field penting:
+- tss[1] = esp0 (kernel stack pointer)
+- tss[2] = ss0 (kernel data segment = 0x10)
 
----
-
-## idt
-
-idt di-setup di `src/kernel/drivers/idt.c`. 256 entries, 8 byte per entry = 2048 byte total.
-
-### layout
-
-```
-entry 0-31:   isr (cpu exceptions)
-entry 32-47:  irq (hardware interrupts)
-entry 48-127: unused
-entry 128:    int 0x80 (syscall gate) -- dpl=3 (0xEF) biar bisa dari ring 3
+tss descriptor di gdt:
+```c
+gdt_set_entry(5, (uint32_t)&tss, sizeof(tss) - 1, 0x89, 0x40);
+// 0x89 = present | ring0 | tss (0x9 = available tss)
+// 0x40 = byte granularity, 32-bit
 ```
 
-### idt_set_entry()
+### gdt_init()
+
+1. set gdt_ptr.limit dan .base
+2. set entry 0-5
+3. panggil `lgdtl`
+4. reload segment registers (ds/es/fs/gs = 0x10)
+5. far jump ke 0x08 buat reload cs
+6. `ltrw` dengan selector tss = 0x28
+
+### reload assembly
+
+```asm
+lgdtl [gdt_ptr]
+movl $0x10, %eax
+movw %ax, %ds
+movw %ax, %es
+movw %ax, %fs
+movw %ax, %gs
+ljmp $0x08, $.reload
+.reload:
+```
+
+ltrw:
+```asm
+mov $0x28, %ax
+ltr %ax
+```
+
+## idt -- interrupt descriptor table
+
+file: `src/kernel/drivers/idt.c`, `src/kernel/syscall/interrupt.asm`
+
+### struktur idt entry
 
 ```c
-void idt_set_entry(int num, uint32_t handler, uint16_t selector, uint8_t type_attr) {
-    idt[num].offset_lo = handler & 0xFFFF;
-    idt[num].offset_hi = (handler >> 16) & 0xFFFF;
-    idt[num].selector = selector;    /* 0x08 = kernel code */
-    idt[num].type_attr = type_attr;  /* 0x8E = interrupt gate, 0xEF = gate dpl=3 */
-    idt[num].reserved = 0;
-}
+typedef struct {
+    uint16_t offset_lo;    // handler address 16 bit bawah
+    uint16_t selector;     // code segment selector (0x08)
+    uint8_t  reserved;     // selalu 0
+    uint8_t  type_attr;    // type and attributes
+    uint16_t offset_hi;    // handler address 16 bit atas
+} __attribute__((packed)) IDTEntry;
 ```
 
-### isr_common_stub (interrupt.asm)
+### idt entries
 
-semua isr 0-31 pake macro `ISR_NOERRCODE` atau `ISR_ERRCODE`, ujungnya lompat ke `isr_common_stub`.
+| range | count | type | type_attr | deskripsi |
+|-------|-------|------|-----------|-----------|
+| 0-31 | 32 | isr | 0x8E | cpu exceptions |
+| 32-47 | 16 | irq | 0x8E | hardware interrupts |
+| 128 | 1 | syscall | 0xEF | int 0x80 (dpl=3) |
 
-stack layout setelah pusha + push ds:
+0x8E = present | ring 0 | interrupt gate (1110)
+0xEF = present | ring 3 | interrupt gate (1111)
+
+### isr macro
+
+macros di interrupt.asm buat generate 32 isr handler:
+
+```asm
+%macro ISR_NOERRCODE 1
+[GLOBAL isr_%1]
+isr_%1:
+    push byte 0              ; dummy error code
+    push byte %1             ; interrupt number
+    jmp isr_common_stub
+%endmacro
+
+%macro ISR_ERRCODE 1
+[GLOBAL isr_%1]
+isr_%1:
+    push byte %1             ; interrupt number (error code from cpu)
+    jmp isr_common_stub
+%endmacro
+```
+
+yang pake errcode: 8 (double fault), 10 (invalid tss), 11 (segment not present), 12 (stack segment), 13 (gpf), 14 (page fault).
+
+### isr_common_stub
+
+```asm
+isr_common_stub:
+    pusha
+    push ds
+    mov ax, 0x10
+    mov ds, es, fs, gs      ; reload kernel data segments
+
+    ; panggil C handler
+    mov eax, [esp + 40]     ; err_code
+    push eax
+    mov eax, [esp + 40]     ; int_num
+    push eax
+    call interrupt_handler
+    add esp, 8
+
+    pop eax
+    mov ds, es, fs, gs
+    popa
+    add esp, 8              ; buang err_code dan int_num
+    iret
+```
+
+### stack layout di isr_common_stub (ring 0 case)
 
 ```
-[esp+0..28] = pusha: edi, esi, ebp, old_esp, ebx, edx, ecx, eax
-[esp+32]   = ds (yang di-push)
-[esp+36]   = error_code (atau 0 buat no-error-code)
-[esp+40]   = int_number
-[esp+44]   = eip (dari cpu push)
-[esp+48]   = cs
-[esp+52]   = eflags
-[esp+56]   = user_esp (ring 3 only)
-[esp+60]   = user_ss  (ring 3 only)
+[esp+0]  = edi (pusha)
+[esp+4]  = esi
+[esp+8]  = ebp
+[esp+12] = old_esp
+[esp+16] = ebx
+[esp+20] = edx
+[esp+24] = ecx
+[esp+28] = eax
+[esp+32] = ds (yang di-push)
+[esp+36] = error_code (0 kalo no-error)
+[esp+40] = int_number
+[esp+44] = eip (cpu push)
+[esp+48] = cs
+[esp+52] = eflags
 ```
 
-handler flow:
-1. `pusha` -> simpen semua general registers
-2. `push ds` -> reload ds dengan kernel data segment (0x10)
-3. push error_code + int_number -> panggil `interrupt_handler()`
-4. setelah return, pop ds, popa, add esp 8 (buang error code + int number)
-5. `iret`
+kalo dari ring 3, tambah user_esp di [esp+56] dan user_ss di [esp+60].
 
-### interrupt_handler() di c
+### interrupt_handler
+
+di idt.c. fungsi c yang dipanggil dari isr_common_stub.
 
 ```c
 void interrupt_handler(int int_num, int err_code) {
-    /* baca cr2 kalo page fault */
-    if (int_num == 14) {
+    uint32_t cr2_val = 0;
+    if (int_num == 14) {  // page fault
         asm volatile("mov %%cr2, %0" : "=r"(cr2_val));
     }
-    log_exception(int_num, err_code, cr2_val, eip);
-    /* tampilkan ke vga */
+    // ambil eip (kurang akurat, tapi buat debugging cukup)
+    uint32_t eip_val = 0;
+    asm volatile("mov 4(%%ebp), %0" : "=r"(eip_val));
+
+    log_exception(int_num, err_code, cr2_val, eip_val);
+
+    // tampilkan ke layar
     vga_print("=== EXCEPTION ===\n");
-    vga_print("int_num="); ...
-    vga_print(" err_code=0x"); ...
-    if (int_num == 14) { vga_print("cr2=0x"); ... }
+    // print int_num, err_code, cr2 (kalo page fault)
+
+    // eoi buat irq
+    if (int_num >= 32 && int_num < 48) {
+        outb(0x20, 0x20);
+        if (int_num >= 40) outb(0xA0, 0x20);
+    }
+
     vga_print("=== UNRECOVERABLE EXCEPTION ===\n");
     while (1) { asm volatile("cli; hlt"); }
 }
 ```
 
-### exception categories
-
-| int | nama | error code | penyebab umum |
-|-----|------|-----------|---------------|
-| 0 | divide error | tidak | div/0 |
-| 6 | invalid opcode | tidak | cpu jump ke data, instruksi gak dikenal |
-| 13 | general protection fault | ya | akses segment invalid, ring violation, null selector |
-| 14 | page fault | ya | akses page yang gak di-map atau gak punya hak |
-
 ### irq handlers
 
-irq0 (timer): `timer_interrupt_handler()` -> increment ticks, panggil `task_switch()`.
-irq1 (keyboard): `keyboard_interrupt_handler()` -> baca scancode dari port 0x60, konversi ke ascii, masukin ke circular buffer.
-
-EOI (end of interrupt) dikirim via `outb(0x20, 0x20)` ke master pic sebelum iret.
-
-### syscall handler (int 0x80)
-
-detail di [system calls](#system-calls).
-
----
-
-## memory
-
-### physical memory manager (pmm)
-
-di `src/kernel/core/pmm.c`. pake bitmap sederhana.
-
-```
-bitmap: 1MB byte = 8M bit, tiap bit = 1 page (4kb) -> bisa cover 32gb
+**irq_0 (timer)**:
+```asm
+irq_0:
+    cli
+    pusha
+    push ds
+    mov ax, 0x10
+    mov ds, es, fs, gs
+    call timer_interrupt_handler  ; ticks++ + task_switch()
+    mov al, 0x20
+    out 0x20, al                  ; eoi
+    pop eax
+    mov ds, es, fs, gs
+    popa
+    sti
+    iret
 ```
 
-inisialisasi (`pmm_init`):
-1. set semua byte bitmap ke 0xFF (semua dipake)
-2. loop dari page 0 sampai `total_pages = total_memory / 4096`: clear bit
-3. mark page 0-0x100000 (first 1mb) sebagai used -- ini area kernel
-4. mark page 0x100000 - `_end` (kernel binary) sebagai used
+**irq_1 (keyboard)**:
+sama, tapi panggil `keyboard_interrupt_handler()` -> baca scancode dari port 0x60, konversi, simpen ke circular buffer.
 
-`_end` diambil dari linker script via `extern uint32_t _end;`. kernel binary dari 0x100000 sampe `_end` (sekitar 2.7mb).
+### int 0x80 handler -- deteksi ring
 
-fungsi:
-- `pmm_alloc_page()` -- linear scan bitmap buat cari free page, return physical address
-- `pmm_free_page(phys)` -- clear bit, increment free_pages counter
-- `pmm_get_free_pages()` -- return free_pages
+```asm
+int_80_wrapper:
+    cli
+    pusha
+    cmp dword [esp + 36], 0x08   ; cs di [esp+36]
+    je .ring0                     ; 0x08 = ring 0, 0x1B = ring 3
+
+; ---- ring 3 ----
+    mov eax, [esp + 28]    ; syscall_num
+    mov ebx, [esp + 16]    ; arg1
+    mov ecx, [esp + 24]    ; arg2
+    mov edx, [esp + 20]    ; arg3
+    push edx, ecx, ebx, eax
+    call int_80_handler
+    add esp, 16
+    mov [esp + 28], eax    ; return value
+
+    ; cek exit request
+    cmp dword [user_exit_flag], 0
+    je .r3_noexit
+
+.r3_exit:
+    ; redirect ke kernel mode
+    mov eax, [user_exit_eip]
+    mov ebx, [user_exit_esp]
+    mov [esp + 32], eax    ; overwrite eip
+    mov dword [esp + 36], 0x08  ; cs = kernel code
+    mov dword [esp + 40], 0x202 ; eflags
+    mov [esp + 44], ebx    ; esp = kernel stack
+    mov dword [esp + 48], 0x10  ; ss = kernel data
+    mov dword [user_exit_flag], 0
+
+.r3_noexit:
+    popa
+    sti
+    iret
+
+; ---- ring 0 ----
+.ring0:
+    ; load args dari pusha
+    mov eax, [esp + 28]    ; syscall_num
+    mov ebx, [esp + 16]    ; arg1
+    mov ecx, [esp + 24]    ; arg2
+    mov edx, [esp + 20]    ; arg3
+    push edx, ecx, ebx, eax
+    call int_80_handler
+    add esp, 16
+    mov [esp + 28], eax
+    popa
+    sti
+    iret
+```
+
+### user_return_to_shell
+
+```asm
+user_return_to_shell:
+    mov eax, kernel_page_dir
+    mov cr3, eax                    ; restore kernel page dir
+    mov esp, [user_exit_esp]
+    pop ebp
+    ret                              ; balik ke shell loop
+```
+
+## system calls
+
+file: `src/kernel/syscall/syscall.c`
+
+### dispatcher
+
+```c
+uint32_t syscall_dispatch(uint32_t num, uint32_t a1, uint32_t a2, uint32_t a3) {
+    switch (num) {
+        case SYSCALL_WRITE:    return syscall_write(...);
+        case SYSCALL_OPEN:     return syscall_open(...);
+        case SYSCALL_READ:     return syscall_read(...);
+        // ... 23 cases total
+        case SYSCALL_USER_EXIT: return syscall_user_exit();
+        case SYSCALL_BRK:      return syscall_brk(a1);
+        default:               return 0xFFFFFFFF;  // invalid
+    }
+}
+```
+
+### syscall_open
+
+```c
+uint32_t syscall_open(const char *path, int flags) {
+    fd_table_t *table = fd_get_current_table();
+    return fd_open(table, path, flags);
+}
+```
+
+### syscall_brk (user heap)
+
+```c
+#define USER_HEAP_BASE   0x01000000
+#define USER_HEAP_MAX    0x02000000
+static uint32_t user_brk = USER_HEAP_BASE;
+
+static uint32_t syscall_brk(uint32_t addr) {
+    if (addr == 0) return user_brk;  // query current
+    if (addr < USER_HEAP_BASE || addr > USER_HEAP_MAX) return user_brk;
+
+    addr = (addr + 0xFFF) & ~0xFFF;  // align ke page
+
+    // expand ke atas
+    while (user_brk < addr) {
+        uint32_t phys = pmm_alloc_page();
+        page_map(user_brk, phys, PTE_PRESENT | PTE_WRITE | PTE_USER);
+        user_brk += 0x1000;
+    }
+    // shrink (belum free physical pages)
+    while (user_brk > addr) { user_brk -= 0x1000; }
+
+    return user_brk;
+}
+```
+
+### syscall_user_exit
+
+```c
+static uint32_t syscall_user_exit(void) {
+    user_exit_flag = 1;
+    return 0;
+}
+```
+
+handler assembly liat `user_exit_flag != 0`, redirect iret ke `user_return_to_shell`.
+
+### daftar lengkap 23 syscall
+
+| # | nama | argumen | return | deskripsi |
+|---|------|---------|--------|-----------|
+| 0 | SYSCALL_WRITE | msg, len | bytes | tulis ke stdout (legacy) |
+| 1 | SYSCALL_SLEEP | ms | 0 | sleep (stub) |
+| 2 | SYSCALL_YIELD | - | 0 | yield task |
+| 3 | SYSCALL_EXIT | code | 0 | exit, close fd, mark dead |
+| 4 | SYSCALL_GETPID | - | pid | current_task->id |
+| 5 | SYSCALL_FORK | - | child_pid | fork process |
+| 6 | SYSCALL_EXEC | prog, size | 0 | exec program (stub) |
+| 7 | SYSCALL_WAIT | status | child_pid | wait child |
+| 8 | SYSCALL_GETPPID | - | ppid | parent pid |
+| 9 | SYSCALL_OPEN | path, flags | fd | open file |
+| 10 | SYSCALL_CLOSE | fd | 0 | close fd |
+| 11 | SYSCALL_READ | fd, buf, cnt | bytes | read dari fd |
+| 12 | SYSCALL_WRITE_FD | fd, buf, cnt | bytes | write ke fd |
+| 13 | SYSCALL_PIPE | pipefd[2] | 0 | create pipe |
+| 14 | SYSCALL_DUP | oldfd | newfd | duplicate fd |
+| 15 | SYSCALL_DUP2 | oldfd, newfd | 0 | dup ke fd tertentu |
+| 16 | SYSCALL_SEEK | fd, off, whence | 0 | seek di fd |
+| 17 | SYSCALL_FDINFO | - | 0 | print fd table |
+| 18 | SYSCALL_BLOCK_READ | block, buf | 0 | read block device |
+| 19 | SYSCALL_BLOCK_WRITE | block, buf | 0 | write block device |
+| 20 | SYSCALL_BLOCK_FLUSH | - | 0 | flush block cache |
+| 21 | SYSCALL_USER_EXIT | - | 0 | exit user mode -> shell |
+| 22 | SYSCALL_BRK | addr | brk | user heap expansion |
+
+## memory management
+
+### pmm (physical memory manager)
+
+file: `src/kernel/core/pmm.c`
+
+bitmap 1mb (8mb bit) bisa cover 32gb memory.
+
+```c
+#define BITMAP_SIZE 1024 * 1024   // 1mb
+static uint8_t page_bitmap[BITMAP_SIZE];
+static uint32_t total_pages = 0;
+static uint32_t free_pages = 0;
+```
+
+#### pmm_init(total_memory)
+
+1. set semua byte ke 0xFF (semua pages dipake)
+2. `total_pages = total_memory / 4096`
+3. loop dari page 0 sampe total_pages: clear bit (mark free)
+4. mark page 0-0x100000 (first 1mb) sebagai used
+5. mark page 0x100000 - _end (kernel binary) sebagai used
+
+#### pmm_alloc_page()
+
+```c
+for (i = 0; i < total_pages; i++) {
+    if (!bitmap_test(i)) {         // free bit
+        bitmap_set(i);
+        free_pages--;
+        return i * PAGE_SIZE;       // physical address
+    }
+}
+return 0;  // no free pages
+```
+
+bitmap_test: `!(page_bitmap[byte] & (1 << bit))`
+
+#### pmm_free_page(phys)
+
+```c
+uint32_t page = phys / PAGE_SIZE;
+bitmap_clear(page);
+free_pages++;
+```
 
 ### paging
 
-di `src/kernel/core/paging.c`. 4kb pages, 2-level hierarchy.
+file: `src/kernel/core/paging.c`
 
+```c
+__attribute__((aligned(0x1000)))
+pde_t kernel_page_dir[PAGE_DIR_SIZE];  // 1024 entry
+static pte_t kernel_page_tables[128][PAGE_TABLE_SIZE]; // page table pool
+static int page_table_index = 5; // 0-4 udah dipake init
 ```
-page directory (1024 pde)   -- tiap pde 4 byte, total 4kb
-  +-> page table (1024 pte) -- tiap pte 4 byte, total 4kb
-       +-> physical page (4096 byte)
+
+#### paging_init
+
+1. clear semua pde
+2. pde[0]: identity map 0-4mb
+   - pakai `kernel_page_tables[0]`
+   - tiap pte: `(i * 4096) | PTE_PRESENT | PTE_WRITE`
+3. pde[0xC00..0xC03]: higher-half
+   - pakai `kernel_page_tables[1..4]`
+   - mapping fisik yang sama dengan identity map
+
+#### page_map(virt, phys, flags)
+
+```c
+uint32_t dir_index = virt >> 22;
+uint32_t table_index = (virt >> 12) & 0x3FF;
+
+if (!kernel_page_dir[dir_index] & PTE_PRESENT) {
+    // alloc page table baru dari pool
+    pte_t *pt = kernel_page_tables[page_table_index++];
+    for (int i = 0; i < 1024; i++) pt[i] = 0;
+    kernel_page_dir[dir_index] = (uint32_t)pt | PTE_PRESENT | PTE_WRITE;
+    if (flags & PTE_USER) kernel_page_dir[dir_index] |= PTE_USER;
+} else {
+    if (flags & PTE_USER) kernel_page_dir[dir_index] |= PTE_USER;
+}
+
+pte_t *pt = (pte_t *)(kernel_page_dir[dir_index] & PAGE_MASK);
+pt[table_index] = (phys & PAGE_MASK) | flags | PTE_PRESENT;
 ```
 
-kernel page dir: `pde_t kernel_page_dir[1024] __attribute__((aligned(0x1000)))`.
+#### paging_create_user_dir (process isolation)
 
-in `paging_init`:
-1. identity map pde[0] (0x00000000-0x003FFFFF) -- kernel code ada di 1MB-3MB, ini penting karena stack, gdt, idt, dll ada di range ini
-2. map pde[0xC00..0xC03] (0xC0000000-0xC0400000) -- higher-half kernel mapping, fisiknya sama dengan identity map
-
-kedua mapping ini pake physical pages dari `kernel_page_tables[0..4]`.
-
-`page_map(virt, phys, flags)`:
-1. `dir_index = virt >> 22`, `table_index = (virt >> 12) & 0x3FF`
-2. kalo pde gak present, alloc page table baru dari pool `kernel_page_tables`
-3. set `pt[table_index] = (phys & PAGE_MASK) | flags | PTE_PRESENT`
-4. kalo flags mengandung PTE_USER, set juga di pde
-
-`page_table_index` makin bertambah tiap kali alloc page table baru. pool awal 10, skrg 128.
-
-### process isolation (paging_create_user_dir)
-
-di `paging.c`, bikin clone kernel page directory buat user task:
-
-1. alloc physical page buat page directory baru
+1. alloc physical page buat page directory via `pmm_alloc_page()`
 2. map sementara di 0x00300000
 3. clone setiap pde dari kernel_page_dir:
-   - kalo pde index 0 (identity map) atau 0xC00-0xC03 (higher-half): copy pte **tanpa** PTE_USER
-   - kalo pde index lainnya: copy pte **dengan** PTE_USER
-4. return physical address buat di-load ke cr3
+   - pde index 0 (identity map): copy tanpa PTE_USER
+   - pde index 0xC00-0xC03 (higher-half): copy tanpa PTE_USER
+   - pde lainnya: copy dengan PTE_USER
+4. tiap clone pake page table fisik baru dari `pmm_alloc_page()`
+5. return physical address
 
-waktu switch ke user page dir, kernel masih bisa akses semua memory (ring 0), tapi user cuma bisa akses page yang ada PTE_USER.
+#### paging_switch_dir(dir)
 
-### kernel heap (kmalloc)
-
-di `src/kernel/lib/heap.c`. free-list allocator dengan splitting & coalescing.
-
-block header (`heap_block_t`, 16 byte):
 ```c
-uint32_t size;           /* total ukuran block (header + payload) */
-uint16_t magic;          /* MAGIC_FREE = 0xF4EE, MAGIC_USED = 0x1CED */
-uint16_t flags;          /* bit 0: 1 = free, 0 = used */
-heap_block_t *next;      /* next/prev di free list */
-heap_block_t *prev;
+uint32_t pd_phys;
+if (dir == NULL) pd_phys = (uint32_t)kernel_page_dir;
+else pd_phys = (uint32_t)dir;
+asm volatile("mov %0, %%cr3" : : "r"(pd_phys));
 ```
 
-heap region: `0x02000000 - 0x03000000` (16mb max). initial heap 64kb.
+### heap allocator (kmalloc/kfree)
 
-`kmalloc(size)`:
-1. kalo blm init, panggil `heap_init()` -> alloc 64kb (16 pages) via pmm
-2. `needed = align_up(sizeof(header) + size)`
-3. first-fit scan free list
-4. kalo block cukup gede (>= needed + BLOCK_MIN), split jadi dua block
-5. kalo gak ketemu, expand heap: alloc page baru, coalesce sama block terakhir kalo adjacent
+file: `src/kernel/lib/heap.c`
 
-`kfree(ptr)`:
+#### block header
+
+```c
+typedef struct heap_block {
+    uint32_t size;            /* total ukuran block (header + payload) */
+    uint16_t magic;           /* MAGIC_FREE (0xF4EE) atau MAGIC_USED (0x1CED) */
+    uint16_t flags;           /* bit 0: free */
+    struct heap_block *next;  /* next free block */
+    struct heap_block *prev;  /* prev free block */
+} heap_block_t;
+```
+
+sizeof = 16 byte.
+
+#### kmalloc(size)
+
+1. `needed = align_up(sizeof(header) + size)`, minimal 8 byte payload
+2. first-fit scan free list
+3. kalo block cukup gede (`>= needed + BLOCK_MIN`): split
+4. kalo gak ketemu: expand heap (alloc page via pmm), coalesce dengan last block kalo adjacent
+
+#### kfree(ptr)
+
 1. validasi magic number
-2. set jadi free, tambah ke free list (sorted by address)
+2. tambah ke free list (sorted by address)
 3. coalesce dengan adjacent free blocks
 
-splitting: block -> [used block] [free block]
-coalescing: [free A] + [free B (adjacent)] -> [free A+B]
+#### splitting
 
----
+```
+block A (size 1000) -> malloc(32) -> needed = align_up(16+32) = 48
+block A di-split:
+  [used A size=48] [free A2 size=952]
+```
+
+#### coalescing
+
+```
+[free A size 48] [free B size 952 adjacent di memory]
+-> setelah coalesce: [free C size 1000]
+```
+
+#### expand_heap
+
+```c
+int npages = expand_heap(0x10000);  // 64kb initial
+// alloc page fisik + page_map di HEAP_BASE + old_committed * 0x1000
+committed_pages += npages;
+```
 
 ## task scheduler
 
-di `src/kernel/tasks/task.c`. struktur task:
+file: `src/kernel/tasks/task.c`
+
+### struktur task
 
 ```c
 typedef struct task_t {
     uint32_t id;
     uint32_t ppid;
-    task_state_t state;       /* READY, RUNNING, BLOCKED, DEAD */
+    task_state_t state;          // READY=0, RUNNING=1, BLOCKED=2, DEAD=3
     int exit_code;
-    task_context_t context;   /* eax, ebx, ecx, edx, esi, edi, ebp, esp, eip, eflags, cs, cr3 */
+    task_context_t context;      // registers + cs + eflags + cr3
     uint32_t *stack;
     uint32_t stack_base;
+    struct task *parent;
+    struct task *child_first;
+    struct task *sibling_next;
     struct task_t *next;
     struct task_t *prev;
     fd_table_t *fd_table;
 } task_t;
 ```
 
-task disimpan di array global `task_t tasks[TASK_MAX]` dengan `TASK_MAX = 16`. linked circular via next/prev pointer.
+context:
+```c
+typedef struct {
+    uint32_t eax, ebx, ecx, edx;
+    uint32_t esi, edi, ebp, esp;
+    uint32_t eip;
+    uint32_t eflags;
+    uint32_t cs;
+    uint32_t cr3;
+} task_context_t;
+```
 
-### task_create()
+### task_create(function_pointer)
 
-1. alloc stack (4 page = 16kb) + mapping `PTE_PRESENT | PTE_WRITE | PTE_USER`
-2. init context: ebp = stack top - 4, eip = entry function, eflags = 0x202, cs = 0x08
-3. init fd_table dari `task_fd_tables[]` statis
-4. link ke circular list task
+1. alloc 4 page (16kb) buat stack: `pmm_alloc_page()` -> `page_map()` di 0x10000 + task_count * 4096
+2. setup task context:
+   - esp = stack_base + TASK_STACK_SIZE - 4
+   - ebp = esp
+   - eip = (uint32_t)entry
+   - eflags = 0x202
+   - cs = 0x08
+3. init fd_table
+4. link ke circular list
 
-### scheduler
+### task_switch()
 
-timer irq (100hz) -> `timer_interrupt_handler()` -> `task_switch()`.
+```c
+void task_switch(void) {
+    if (task_count <= 1) return;
 
-`task_switch()`:
-1. kalo task_count <= 1, return
-2. `current_task = current_task->next` (round-robin)
-3. set state = TASK_RUNNING
-4. kalo current_task punya cr3, panggil `paging_switch_dir()`
+    task_t *prev = current_task;
 
-**tidak ada** context save/restore yang sesungguhnya -- ini kelemahan. scheduler cuma ganti current_task pointer dan cr3, tapi gak nyimpen/restore register task sebelumnya. iret di irq handler balik ke task yang sama meskipun current_task udah ganti.
+    // round-robin
+    current_task = current_task->next;
+    if (!current_task) current_task = &tasks[0];
+    current_task->state = TASK_RUNNING;
 
-### task_fork()
+    // cr3 switching
+    if (current_task->context.cr3 != 0)
+        paging_switch_dir((pde_t *)current_task->context.cr3);
+    else if (prev && prev->context.cr3 && !current_task->context.cr3)
+        paging_switch_dir(NULL);
+}
+```
 
-copy task (termasuk stack), copy fd_table parent ke child.
+### task_create_user (ring 3 task)
 
-### task_user.c
+di `src/kernel/tasks/task_user.c`:
 
-bikin user mode task:
-1. ambil code dari CODE_VIRT (0x40000000)
-2. map page dengan PTE_USER (biar bisa diakses ring 3)
-3. alloc stack di 0xF00000 dengan PTE_USER
-4. setup tcb dengan cs = USER_CS (0x1B)
-5. `switch_to_user()` via iret:
+1. code sudah di-assemble ke CODE_VIRT (0x40000000) oleh asm_assemble
+2. map 4 page di CODE_VIRT dengan PTE_USER (biar bisa diakses ring 3)
+3. alloc stack 16kb di 0xF00000 dengan PTE_USER
+4. setup tcb:
+   - cs = USER_CS (0x1B)
+   - eflags = 0x202
+   - eip = code_addr (0x40000000)
+   - cr3 = dari paging_create_user_dir()
+5. `switch_to_user()` -> iret ke ring 3
+
+### switch_to_user()
 
 ```c
 asm volatile(
-    "pushl %2\n"      /* ss = user_data segment (0x23) */
-    "pushl %1\n"      /* esp = user stack */
+    "pushl %2\n"      /* ss = 0x23 */
+    "pushl %1\n"      /* esp */
     "pushl %3\n"      /* eflags = 0x202 */
-    "pushl %0\n"      /* cs = user_code segment (0x1B) */
-    "pushl %4\n"      /* eip = entry point */
+    "pushl %0\n"      /* cs = 0x1B */
+    "pushl %4\n"      /* eip */
     "mov %2, %%eax\n"
     "mov %%eax, %%ds\n"
     "mov %%eax, %%es\n"
@@ -347,294 +665,98 @@ asm volatile(
 );
 ```
 
-setelah iret, cpu berjalan di ring 3 dengan user code.
+## klilbc -- kernel libc
 
-### user return to shell
+file: `src/kernel/lib/klibc.c`
 
-`user_return_to_shell` (di interrupt.asm):
-1. restore cr3 ke `kernel_page_dir`
-2. restore esp dari `user_exit_esp`
-3. pop ebp
-4. ret -> balik ke kernel_main shell loop
+fungsi standard c yang berjalan di kernel mode, pake vga_putc/vga_print langsung.
 
----
-
-## system calls
-
-23 system calls via int 0x80. handler di `interrupt.asm`, dispatcher di `syscall.c`.
-
-### int_80_wrapper -- deteksi ring
-
-```asm
-int_80_wrapper:
-    cli
-    pusha
-    cmp dword [esp + 36], 0x08  /* cs di [esp+36] */
-    je .ring0                   /* 0x08 = kernel, 0x1B = user */
-```
-
-ring 0 path:
-- cpu push: eip, cs, eflags (3 words)
-- handler: push args -> call -> store return -> popa -> iret
-
-ring 3 path:
-- cpu push: ss, esp, eflags, cs, eip (5 words)
-- handler: sama, tapi setelah itu cek `user_exit_flag`
-- kalo exit, overwrite iret frame dengan address kernel untuk redirect ke shell
-
-### syscall table (23 syscall)
-
-| # | nama | arg | deskripsi |
-|---|------|-----|-----------|
-| 0 | SYSCALL_WRITE | msg, len | tulis ke stdout (legacy) |
-| 1 | SYSCALL_SLEEP | ms | sleep (stub doang) |
-| 2 | SYSCALL_YIELD | - | yield scheduler |
-| 3 | SYSCALL_EXIT | exit_code | exit task, close semua fd |
-| 4 | SYSCALL_GETPID | - | return current_task->id |
-| 5 | SYSCALL_FORK | - | fork process |
-| 6 | SYSCALL_EXEC | program, size | exec (stub) |
-| 7 | SYSCALL_WAIT | status | wait child |
-| 8 | SYSCALL_GETPPID | - | return ppid |
-| 9 | SYSCALL_OPEN | path, flags | open file via fd layer |
-| 10 | SYSCALL_CLOSE | fd | close fd |
-| 11 | SYSCALL_READ | fd, buf, count | read dari fd |
-| 12 | SYSCALL_WRITE_FD | fd, buf, count | write ke fd |
-| 13 | SYSCALL_PIPE | pipefd[2] | pipe |
-| 14 | SYSCALL_DUP | oldfd | duplicate fd |
-| 15 | SYSCALL_DUP2 | oldfd, newfd | dup2 |
-| 16 | SYSCALL_SEEK | fd, offset, whence | seek |
-| 17 | SYSCALL_FDINFO | - | debug: print fd table |
-| 18 | SYSCALL_BLOCK_READ | block, buf | read block device |
-| 19 | SYSCALL_BLOCK_WRITE | block, buf | write block device |
-| 20 | SYSCALL_BLOCK_FLUSH | - | flush block cache |
-| 21 | SYSCALL_USER_EXIT | - | exit user mode, redirect ke shell |
-| 22 | SYSCALL_BRK | addr | user heap expansion |
-
-### external symbols (asm.c)
-
-tabel `extern_syms[]` di `asm.c`:
-
-| symbol | fungsi | asal |
-|--------|--------|------|
-| `_printf` | `klibc_printf` | klibc.c |
-| `_putchar` | `klibc_putchar` | klibc.c |
-| `_puts` | `klibc_puts` | klibc.c |
-| `_malloc` | `kmalloc` | heap.c |
-| `_free` | `kfree` | heap.c |
-| `_sys_open` | `syscall_open` | syscall.c |
-| `_sys_read` | `syscall_read` | syscall.c |
-| `_sys_write_fd` | `syscall_write_fd` | syscall.c |
-| `_usr_printf` | `usr_printf` | usrlib.c |
-
-resolusi external symbol:
-```c
-uint32_t ext_addr = find_extern(name);
-/* hitung relative call */
-int32_t rel = (int32_t)(ext_addr - CODE_VIRT - patches[i].from);
-```
-
-kalo label gak ditemukan di local `labels[]`, assembler cari di `extern_syms[]`.
-
-### user exit flow
-
-1. user panggil `syscall 21` (SYSCALL_USER_EXIT)
-2. C handler set `user_exit_flag = 1`
-3. assembly handler deteksi flag, overwrite iret frame:
-   - eip = `user_exit_eip` (address user_return_to_shell)
-   - cs = 0x08 (kernel code)
-   - esp = `user_exit_esp` (kernel stack)
-   - ss = 0x10 (kernel data)
-4. iret -> balik ke kernel mode di `user_return_to_shell`
-5. restore cr3, pop ebp, ret -> balik ke shell
-
----
-
-## heap allocator (kmalloc)
-
-free-list allocator di `src/kernel/lib/heap.c`.
-
-algoritma sudah dijelaskan di [memory section](#memory). tambahan:
-
-### heap expansion
-
-kalo free list kosong (gak ada block yang cukup):
-1. `expand_heap(size)` -> alloc N page via pmm, map di heap boundary
-2. buat block baru dari page yang baru
-3. coalesce dengan free block terakhir kalo adjacent
-
-### `kcalloc(n, size)`
-
-`kmalloc(n * size)` + `memset(ptr, 0, total)`.
-
-### `krealloc(ptr, new_size)`
-
-1. kalo ptr null, return `kmalloc(new_size)`
-2. kalo new_size 0, `kfree(ptr)`, return null
-3. alloc baru, `memcpy` min(old_size, new_size), kfree(ptr)
-
----
-
-## filesystem (oafs)
-
-di `src/kernel/fs/vfs.c`. inode-based filesystem kustom.
-
-### on-disk layout
-
-```
-[block 128: superblock] [block 129..: inode table] [block ..8192: data blocks]
-```
-
-superblock:
-```c
-uint32_t magic;         /* VFS_MAGIC = 0x0AF6 */
-uint32_t total_blocks;  /* 8192 */
-uint32_t total_inodes;  /* 1024 */
-uint32_t free_inodes;
-uint32_t free_blocks;
-```
-
-inode:
-```c
-uint32_t type;          /* 0=free, 1=file, 2=dir */
-uint32_t size;
-uint32_t parent_inode;
-uint32_t direct[12];    /* direct block pointers */
-uint32_t indirect;      /* indirect block pointer */
-uint32_t ctime, mtime;
-char name[32];
-```
-
-kapasitas file: 12 direct * 512 = 6kb + 128 indirect * 512 = 64kb, total ~70kb.
-
-directory entry:
-```c
-uint32_t inode_number;
-char name[MAX_FILENAME_LENGTH];  /* 32 */
-```
-
-1 block = 512 byte, tiap entry 36 byte -> max 14 entry per block. tapi sekarang multi-block directory support sampe 12 block = 168 entries.
-
-### key functions
-
-`vfs_open(path, flags)`: resolve path, kalo gak ada + O_CREATE -> create file.
-`vfs_read(fd, buf, count)`: pake `get_block_ptr()` buat dapetin block number dari offset.
-`vfs_write(fd, buf, count)`: pake `set_block_ptr()` buat alokasi block otomatis.
-`vfs_unlink(path)`: remove directory entry -> free blocks -> free inode.
-`vfs_mkdir(path)`: alloc inode + block buat directory entries.
-`vfs_resolve_path(path, &ino)`: parse path, cari child di setiap directory.
-
-### fd layer
-
-di `src/kernel/fs/fd.c`. nyediain file descriptor abstraction di atas vfs.
-
-`fd_open()`: konversi posix flags ke vfs flags, panggil `vfs_open()`, setup fd entry.
-`fd_read()`: ambil vfs_fd dari entry, panggil `vfs_read()`.
-`fd_write()`: sama.
-
-open file limit: `FD_MAX = 32`.
-
----
-
-## built-in assembler (asm.c)
-
-assembler x86 32-bit lengkap di `src/kernel/apps/asm.c`, ~1400 baris.
-
-### komponen
-
-1. **code buffer**: `static uint8_t code_buf[CODE_SIZE]` dengan `CODE_SIZE = 16384`
-2. **label table**: 32 label max
-3. **patch table**: 128 patch max untuk forward/backward reference
-4. **external symbol table**: fungsi kernel & usrlib yang bisa dipanggil
-
-### instruksi yang didukung
-
-| kategori | instruksi |
-|----------|-----------|
-| move | `mov` (reg, mem, imm, seg reg) |
-| arithmetic | `add`, `sub`, `cmp`, `xor`, `and`, `or` |
-| control | `jmp`, `je/jz`, `jne/jnz`, `jg/jl/jge/jle`, `call`, `ret` |
-| stack | `push` (reg, imm, label), `pop`, `pusha`, `popa` |
-| other | `int`, `nop`, `hlt`, `sti`, `cli`, `inc`, `dec`, `imul`, `idiv`, `cdq`, `test`, `movzx`, `neg`, `div`, `setcc`, `cmovcc` |
-| data | `db` (mixed string + numeric) |
-| directive | `times N <instruction>` |
-
-### gen_push label support
-
-kalo operand bukan register dan bukan integer (gagal `parse_int`), assembler coba resolve sebagai label:
+### printf
 
 ```c
-int target = find_label(ops);
-if (target >= 0) {
-    emit(0x68); emit32(CODE_VIRT + target);
-    return 0;
+int klibc_printf(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    for (int i = 0; fmt[i]; i++) {
+        if (fmt[i] != '%') { vga_putc(fmt[i]); count++; continue; }
+        i++;
+        switch (fmt[i]) {
+            case 'd': count += print_int(va_arg(args, int)); break;
+            case 's': count += print_padded_string(va_arg(args, char*), width, 0, left); break;
+            case 'x': count += print_unsigned(va_arg(args, unsigned), 16, 0); break;
+            case 'u': count += print_unsigned(va_arg(args, unsigned), 10, 0); break;
+            case 'o': count += print_unsigned(va_arg(args, unsigned), 8, 0); break;
+            case 'p': vga_print("0x"); count += print_unsigned((uint32_t)va_arg(args,void*),16,0); break;
+            case 'c': vga_putc(va_arg(args, int)); count++; break;
+            case '%': vga_putc('%'); count++; break;
+        }
+    }
+    va_end(args);
 }
-add_patch(code_len + 1, 0, ops, 2);  /* forward reference */
-emit(0x68); emit32(0);
 ```
 
-### asm_assemble flow
-
-1. copy code ke `input_buf[]`
-2. proses baris per baris via `process_line()`
-3. set `code_len` = total byte yang di-emit
-4. apply patches (resolve forward references)
-5. `pmm_alloc_page()` -> `page_map(CODE_VIRT, phys, PTE_PRESENT|PTE_WRITE|PTE_USER)`
-6. copy `code_buf` ke `CODE_VIRT`
-
-code dijalankan dengan `void (*fn)(void) = (void(*)(void))CODE_VIRT; fn();`.
-
----
-
-## klibc
-
-kernel-space library di `src/kernel/lib/klibc.c`. fungsi standard c yang jalan di kernel mode (ring 0), pake `vga_putc`/`vga_print` langsung.
-
-### fungsi output
+### scanf
 
 ```c
-int klibc_putchar(int c);   /* vga_putc(c) */
-int klibc_puts(const char *s);  /* vga_print(s) + newline */
-int klibc_printf(const char *fmt, ...);  /* printf dengan %d %s %c %x %u %o %% */
-int klibc_sprintf(char *buf, const char *fmt, ...);  /* sprintf ke buffer */
+int klibc_scanf(const char *fmt, ...) {
+    gets(line);  // baca 1 baris dari keyboard
+    for (int i = 0; fmt[i]; i++) {
+        if (fmt[i] != '%') {
+            if (fmt[i] == ' ' || fmt[i] == '\t') continue;
+            if (line[lpos] == fmt[i]) lpos++;
+            else break;
+            continue;
+        }
+        i++;
+        switch (fmt[i]) {
+            case 'd': /* parse integer desimal */
+            case 's': /* parse string sampe whitespace */
+            case 'x': /* parse hex */
+            case 'o': /* parse octal */
+        }
+    }
+}
 ```
 
-printf support: `%d %i %u %x %X %s %c %o %p %%`, width, left-align, zero-pad.
-
-### fungsi input
+### sprintf
 
 ```c
-int klibc_getchar(void);     /* keyboard_getchar() + echo */
-char *klibc_gets(char *s);   /* baca sampe \n, handle backspace */
-int klibc_scanf(const char *fmt, ...);  /* scanf dengan %d %s %c %x %o */
+int klibc_sprintf(char *buf, const char *fmt, ...) {
+    // sama kaya printf tapi nulis ke buffer, bukan vga
+    va_start(args, fmt);
+    for (int i = 0; fmt[i]; i++) {
+        if (fmt[i] != '%') { buf[pos++] = fmt[i]; continue; }
+        i++;
+        switch (fmt[i]) {
+            case 'd': itoa(val, tmp, 10); for(...) buf[pos++] = tmp[j]; break;
+            case 's': while(*s) buf[pos++] = *s++; break;
+        }
+    }
+    buf[pos] = '\0';
+}
 ```
 
-### utility
+### atoi
 
 ```c
-int klibc_atoi(const char *s);  /* string to int */
+int klibc_atoi(const char *s) {
+    int sign = 1, num = 0;
+    while (*s == ' ' || *s == '\t') s++;
+    if (*s == '-') { sign = -1; s++; }
+    while (*s >= '0' && *s <= '9') { num = num * 10 + (*s - '0'); s++; }
+    return num * sign;
+}
 ```
 
-klibc_printf pake `va_list` dan `va_arg` untuk handling variadic arguments.
+## usrlib -- user space library
 
----
+file: `src/kernel/lib/usrlib.c`
 
-## usrlib
+fungsi yang pake int 0x80 syscall, bukan langsung hardware. aman dipanggil dari ring 3.
 
-user space library di `src/kernel/lib/usrlib.c`. fungsi yang sama kaya klibc tapi pake `int 0x80` syscall, jadi aman dipanggil dari ring 3.
+### syscall wrappers
 
-### fungsi
-
-```c
-int usr_printf(const char *fmt, ...);  /* printf via syscall */
-int usr_puts(const char *s);           /* puts via syscall */
-int usr_putchar(int c);                /* putchar via syscall */
-int usr_getchar(void);                 /* getchar via syscall */
-char *usr_gets(char *s);              /* gets via syscall */
-void *usr_malloc(uint32_t size);      /* malloc via brk syscall */
-void usr_free(void *ptr);             /* stub */
-```
-
-setiap fungsi pake inline syscall wrapper:
 ```c
 static inline uint32_t sys3(uint32_t num, uint32_t a1, uint32_t a2, uint32_t a3) {
     register uint32_t eax asm("eax") = num;
@@ -646,95 +768,83 @@ static inline uint32_t sys3(uint32_t num, uint32_t a1, uint32_t a2, uint32_t a3)
 }
 ```
 
----
-
-## logging
-
-di `src/kernel/lib/log.c`. circular buffer 4096 byte.
+### usr_printf
 
 ```c
-static char log_buf[LOG_BUF_SIZE];  /* LOG_BUF_SIZE = 4096 */
-static volatile int write_pos = 0;
-static volatile int read_pos = 0;
-```
-
-### log_printf()
-
-format: `[timestamp] message\n`. timestamp pake tick counter dari timer.
-
-support format: `%s`, `%d`, `%x`, `%%`. kalo buffer penuh, write_pos maju, read_pos juga ikut maju (overflow).
-
-### log_exception()
-
-dipanggil dari `interrupt_handler()` di idt.c. format:
-```
-[EXC] int=N err=0xX cr2=0xX eip=0xX
-```
-
-### dmesg
-
-shell command `dmesg` -> `log_dump()` -> print semua isi circular buffer ke vga.
-
----
-
-## shell
-
-shell berjalan sebagai infinite loop di `kernel_main()` (`src/kernel/core/kernel.c`).
-
-```c
-while (1) {
-    char c = keyboard_getchar();
-    if (c == '\n') {
-        input[index] = 0;
-        /* parse command */
-        if (strcmp(input, "help") == 0) { ... }
-        else if (starts_with(input, "edit ")) { ... }
-        else if (starts_with(input, "cat ")) { ... }
-        /* ... */
-    } else if (c == '\b') {
-        if (index > 0) index--;
-    } else {
-        if (index < INPUT_MAX - 1) input[index++] = c;
+int usr_printf(const char *fmt, ...) {
+    for (int i = 0; fmt[i]; i++) {
+        if (fmt[i] != '%') { usr_putchar(fmt[i]); continue; }
+        i++;
+        switch (fmt[i]) {
+            case 'd': /* convert int to string -> write via syscall */
+            case 's': /* write string via syscall */
+            case 'x': /* hex via syscall */
+        }
     }
 }
 ```
 
-### command list
+setiap putchar pake `sys3(SYSCALL_WRITE_FD, 1, &ch, 1)`.
 
-| command | implementasi |
-|---------|-------------|
-| `help` | print daftar command |
-| `clear` | `vga_clear()` |
-| `ls [path]` | `vfs_list()` -> color coded output |
-| `cd <path>` | `vfs_chdir()` |
-| `pwd` | `vfs_getcwd()` |
-| `mkdir <p>` | `vfs_mkdir()` |
-| `touch <p>` | `vfs_create()` |
-| `rm <p>` | `vfs_unlink()` |
-| `rmdir <p>` | `vfs_rmdir()` |
-| `cat <p>` | `vfs_open(O_RDONLY)` -> `vfs_read()` -> print |
-| `write <p> <t>` | `vfs_open(O_WRITE|O_CREATE|O_TRUNC)` -> `vfs_write()` |
-| `append <p> <t>` | same with O_APPEND |
-| `echo <text>` | print teks |
-| `hexdump <p>` | read file, print hex |
-| `edit <p>` | editor_run() |
-| `nasm <p>` | asm_run_file() |
-| `user <p>` | run_user_test() |
-| `occ <p>` | run_occ() |
-| `dmesg` | log_dump() |
-| `syscall` | print syscall table |
-| `uptime` | timer_get_ticks() / 100 |
-| `meminfo` | pmm_get_free_pages() |
-| `taskinfo` | task_print_info() |
+### usr_malloc
 
-### ls color
-
-parser output dari `vfs_list()`:
-
+pake brk syscall:
 ```c
-if (out[j] == 'd') {
-    vga_set_color(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);  /* directory = kuning */
-} else if (out[j] == 'f') {
-    vga_set_color(15, VGA_COLOR_BLACK);                 /* file = putih */
+void *usr_malloc(uint32_t size) {
+    uint32_t cur = sys1(SYSCALL_BRK, 0);
+    if (cur == 0) return 0;
+    uint32_t new = sys1(SYSCALL_BRK, cur + size + 4);
+    if (new <= cur) return 0;
+    return (void *)(cur + 4);
 }
 ```
+
+## logging
+
+file: `src/kernel/lib/log.c`
+
+### circular buffer
+
+```c
+static char log_buf[LOG_BUF_SIZE];  // 4096 byte
+static volatile int write_pos = 0;
+static volatile int read_pos = 0;
+```
+
+### log_printf
+
+format: `[timestamp] message\n`
+
+```c
+void log_printf(const char *fmt, ...) {
+    // tulis timestamp
+    log_putchar('[');
+    log_int(timer_get_ticks(), 10);
+    log_puts("] ");
+
+    va_start(args, fmt);
+    for (int i = 0; fmt[i]; i++) {
+        if (fmt[i] != '%') { log_putchar(fmt[i]); continue; }
+        i++;
+        switch (fmt[i]) {
+            case 's': log_puts(va_arg(args, char*)); break;
+            case 'd': log_int(va_arg(args, int), 10); break;
+            case 'x': log_hex(va_arg(args, uint32_t)); break;
+        }
+    }
+    log_putchar('\n');
+}
+```
+
+overflow: kalo write_pos == read_pos, read_pos maju (data lama di-overwrite).
+
+### log_exception
+
+dipanggil dari interrupt_handler:
+```c
+log_printf("[EXC] int=%d err=0x%x cr2=0x%x eip=0x%x", int_num, err_code, cr2_val, eip_val);
+```
+
+### log_dump (dmesg)
+
+print semua isi circular buffer ke vga. dari read_pos sampe write_pos.
