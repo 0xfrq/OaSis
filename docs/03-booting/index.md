@@ -11,10 +11,10 @@ kernel dimulai dengan header multiboot di section `.multiboot`:
 
 ```asm
 SECTION .multiboot
-    align 4
-    dd 0x1BADB002       ; magic number
-    dd 0x00             ; flags (none, aout kludge tidak dipake)
-    dd -(0x1BADB002)    ; checksum: magic + flags + checksum = 0
+ align 4
+ dd 0x1BADB002 ; magic number
+ dd 0x00 ; flags (none, aout kludge tidak dipake)
+ dd -(0x1BADB002) ; checksum: magic + flags + checksum = 0
 ```
 
 grub membaca header ini dan load kernel.bin di physical address 1mb (0x100000). kernel binary adalah elf32, grub parse elf header dan load segments sesuai.
@@ -29,17 +29,17 @@ GLOBAL _start
 EXTERN kernel_main
 
 _start:
-    cli                     ; matiin interrupt dulu
-    mov esp, stack_top      ; set stack pointer ke stack 64kb
-    call kernel_main        ; panggil kernel c
+ cli ; matiin interrupt dulu
+ mov esp, stack_top ; set stack pointer ke stack 64kb
+ call kernel_main ; panggil kernel c
 
 .hang:
-    hlt                     ; kalo kernel_main return, halt
-    jmp .hang
+ hlt ; kalo kernel_main return, halt
+ jmp .hang
 
 section .bss
 align 16
-resb 65536                 ; 64kb stack
+resb 65536 ; 64kb stack
 stack_top:
 ```
 
@@ -50,29 +50,29 @@ stack_top adalah symbol yang di-expose ke c via `extern uint32_t stack_top;`, di
 ### urutan inisialisasi
 
 ```
-1. vga_clear()           -- bersihin layar 80x25
-2. boot_screen()         -- tampilkan "oasis os" + border + "booting..."
-3. gdt_init()            -- setup 6 gdt entries (ring0 + ring3 + tss)
-4. idt_init()            -- 256 idt entries (32 isr + 16 irq + int 0x80)
-5. pic_init()            -- remap irq ke interrupt 32-47
-6. timer_init(100)       -- pit channel 0 di 100hz
-7. keyboard_init()       -- ps/2 keyboard, flush buffer
-8. boot_progress()       -- update loading dots
-9. sti                   -- enable interrupts
-10. memory_init()        -- e820 memory detection
-11. pmm_init()           -- physical memory manager (bitmap)
-12. paging_init()        -- page tables + identity map + higher-half
-13. paging_enable()      -- set cr0.pg = 1
+1. vga_clear() -- bersihin layar 80x25
+2. boot_screen() -- tampilkan "oasis os" + border + "booting..."
+3. gdt_init() -- setup 6 gdt entries (ring0 + ring3 + tss)
+4. idt_init() -- 256 idt entries (32 isr + 16 irq + int 0x80)
+5. pic_init() -- remap irq ke interrupt 32-47
+6. timer_init(100) -- pit channel 0 di 100hz
+7. keyboard_init() -- ps/2 keyboard, flush buffer
+8. boot_progress() -- update loading dots
+9. sti -- enable interrupts
+10. memory_init() -- e820 memory detection
+11. pmm_init() -- physical memory manager (bitmap)
+12. paging_init() -- page tables + identity map + higher-half
+13. paging_enable() -- set cr0.pg = 1
 14. boot_progress()
-15. task_init()          -- init task array + scheduler
-16. fd_init()            -- file descriptor layer
-17. block_init()         -- block device cache
-18. vfs_init()           -- oafs filesystem (format kalo belum ada)
-19. syscall_init()       -- set idt entry 128 (0x80) dengan dpl=3
-20. task_create() x3     -- idle, worker, block_test
-21. boot_progress()      -- dots selesai
-22. vga_clear()          -- bersihin layar
-23. shell prompt          -- "=== oasis os ===" + "type help" + prompt
+15. task_init() -- init task array + scheduler
+16. fd_init() -- file descriptor layer
+17. block_init() -- block device cache
+18. vfs_init() -- oafs filesystem (format kalo belum ada)
+19. syscall_init() -- set idt entry 128 (0x80) dengan dpl=3
+20. task_create() x3 -- idle, worker, block_test
+21. boot_progress() -- dots selesai
+22. vga_clear() -- bersihin layar
+23. shell prompt -- "=== oasis os ===" + "type help" + prompt
 ```
 
 ### gdt_init
@@ -126,18 +126,18 @@ bitmap 1mb (8m bit) di-reset. kernel area (0-1mb + kernel binary sampe _end) di-
 
 ### paging_init
 
-2 page tables dibuat:
+page tables dibuat:
 1. pde[0]: identity map 0-4mb (kernel code, vga buffer, dll)
 2. pde[0xC00..0xC03]: higher-half mapping 0xC0000000-0xC0400000 (akses kernel dari high address)
 
 ### paging_enable
 
 ```c
-uint32_t pd_phys = (uint32_t)kernel_page_dir;  // physical address
+uint32_t pd_phys = (uint32_t)kernel_page_dir; // physical address
 asm volatile("mov %0, %%cr3" : : "r"(pd_phys));
 uint32_t cr0;
 asm volatile("mov %%cr0, %0" : "=r"(cr0));
-cr0 |= 0x80000000;  // PG bit
+cr0 |= 0x80000000; // PG bit
 asm volatile("mov %0, %%cr0" : : "r"(cr0));
 ```
 

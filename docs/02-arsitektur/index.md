@@ -11,19 +11,19 @@ oasis pake desain monolithic kernel -- semua layanan (filesystem, driver, syscal
 
 ```
 +------------------------------------------+
-|  shell (kernel_main loop)                |
+| shell (kernel_main loop) |
 +------------------------------------------+
-|  syscall layer (23 syscalls via int 0x80)|
+| syscall layer (syscalls via int 0x80)|
 +------------------------------------------+
-|  filesystem (oafs + fd layer)            |
+| filesystem (oafs + fd layer) |
 +------------------------------------------+
-|  task scheduler + process isolation      |
+| task scheduler + process isolation |
 +------------------------------------------+
-|  memory management (pmm + paging + heap) |
+| memory management (pmm + paging + heap) |
 +------------------------------------------+
-|  device drivers (keyboard, timer, ata)   |
+| device drivers (keyboard, timer, ata) |
 +------------------------------------------+
-|  boot + gdt + idt + interrupts           |
+| boot + gdt + idt + interrupts |
 +------------------------------------------+
 ```
 
@@ -31,10 +31,10 @@ oasis pake desain monolithic kernel -- semua layanan (filesystem, driver, syscal
 
 ```
 grub -> entry.asm -> kernel_main()
-  -> gdt_init() -> idt_init() -> pic_init()
-  -> timer_init(100hz) -> keyboard_init()
-  -> memory_init (e820) -> pmm_init -> paging_init
-  -> task_init -> fd_init -> block_init
-  -> vfs_init (oafs) -> syscall_init
-  -> shell loop
+ -> gdt_init() -> idt_init() -> pic_init()
+ -> timer_init(100hz) -> keyboard_init()
+ -> memory_init (e820) -> pmm_init -> paging_init
+ -> task_init -> fd_init -> block_init
+ -> vfs_init (oafs) -> syscall_init
+ -> shell loop
 ```

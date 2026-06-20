@@ -62,5 +62,5 @@ capture: `qemu -debugcon stdio`
 
 semua exception tercatat ke dmesg:
 ```
-dmesg    # view kernel log
+dmesg # view kernel log
 ```

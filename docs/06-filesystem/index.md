@@ -5,30 +5,30 @@ title: filesystem
 
 # filesystem (oafs)
 
-oafs adalah inode-based filesystem kustom untuk oasis. semua kode di `src/kernel/fs/vfs.c` (~760 baris) dengan header di `include/vfs.h`.
+oafs adalah inode-based filesystem kustom untuk oasis. semua kode di `src/kernel/fs/vfs.c` (~banyak baris) dengan header di `include/vfs.h`.
 
 ## on-disk layout
 
-disk image (`disk.img`) 4mb dengan 8192 block @ 512 byte.
+disk image (`disk.img`) 4mb dengan 8192 block @ .
 
 ```
-block 0-127:     reserved (boot sector dll)
-block 128:       superblock
+block 0-127: reserved (boot sector dll)
+block 128: superblock
 block 129-128+N: inode table (N = ceil(1024 / (512/64)) = ceil(1024/8) = 128 block)
-block sisanya:   data blocks
+block sisanya: data blocks
 ```
 
 ## superblock (block 128)
 
 ```c
 typedef struct {
-    uint32_t magic;          // VFS_MAGIC = 0x0AF6
-    uint32_t total_blocks;   // 8192
-    uint32_t inode_table_start;
-    uint32_t data_start;
-    uint32_t total_inodes;   // 1024
-    uint32_t free_inodes;
-    uint32_t free_blocks;
+ uint32_t magic; // VFS_MAGIC = 0x0AF6
+ uint32_t total_blocks; // 8192
+ uint32_t inode_table_start;
+ uint32_t data_start;
+ uint32_t total_inodes; // 1024
+ uint32_t free_inodes;
+ uint32_t free_blocks;
 } superblock_t;
 ```
 
@@ -38,14 +38,14 @@ magic number 0x0AF6 dicek pas boot. kalo gak cocok, filesystem di-format ulang.
 
 ```c
 typedef struct {
-    uint32_t type;           // 0=free, 1=file, 2=dir
-    uint32_t size;
-    uint32_t parent_inode;
-    uint32_t direct[12];     // 12 direct block pointers (12 * 512 = 6kb)
-    uint32_t indirect;       // indirect block pointer (128 * 512 = 64kb)
-    uint32_t ctime;
-    uint32_t mtime;
-    char name[32];
+ uint32_t type; // 0=free, 1=file, 2=dir
+ uint32_t size;
+ uint32_t parent_inode;
+ uint32_t direct[12]; // 12 direct block pointers (12 * 512 = 6kb)
+ uint32_t indirect; // indirect block pointer (128 * 512 = 64kb)
+ uint32_t ctime;
+ uint32_t mtime;
+ char name[32];
 } inode_t;
 ```
 
@@ -57,12 +57,12 @@ total inode: 1024. satu block bisa muat 512/64 = 8 inode. inode table butuh 128 
 
 ```c
 typedef struct {
-    uint32_t inode_number;   // 4 byte
-    char name[MAX_FILENAME_LENGTH];  // 32 byte
+ uint32_t inode_number; // 
+ char name[MAX_FILENAME_LENGTH]; // 
 } dir_entry_t;
 ```
 
-sizeof = 36 byte. satu block bisa muat 512/36 = 14 entry.
+sizeof = . satu block bisa muat 512/36 = entry.
 
 dengan multi-block support, directory bisa punya 12 block = 168 entries max.
 
@@ -82,22 +82,22 @@ fungsi helper buat dapetin block number dari offset file tertentu.
 
 ```c
 static int get_block_ptr(inode_t *in, uint32_t blk_idx) {
-    if (blk_idx < 12) {
-        if (in->direct[blk_idx] == 0) return -1;
-        return (int)in->direct[blk_idx];
-    }
+ if (blk_idx < 12) {
+ if (in->direct[blk_idx] == 0) return -1;
+ return (int)in->direct[blk_idx];
+ }
 
-    /* indirect block */
-    if (in->indirect == 0) return -1;
+ /* indirect block */
+ if (in->indirect == 0) return -1;
 
-    uint32_t ind_idx = blk_idx - 12;
-    if (ind_idx >= 128) return -1;
+ uint32_t ind_idx = blk_idx - 12;
+ if (ind_idx >= 128) return -1;
 
-    uint8_t ind_buf[BLOCK_SIZE];
-    read_block(in->indirect, ind_buf);
-    uint32_t *block_ptrs = (uint32_t *)ind_buf;
-    if (block_ptrs[ind_idx] == 0) return -1;
-    return (int)block_ptrs[ind_idx];
+ uint8_t ind_buf[BLOCK_SIZE];
+ read_block(in->indirect, ind_buf);
+ uint32_t *block_ptrs = (uint32_t *)ind_buf;
+ if (block_ptrs[ind_idx] == 0) return -1;
+ return (int)block_ptrs[ind_idx];
 }
 ```
 
@@ -107,40 +107,40 @@ sama dengan get_block_ptr, tapi alloc block kalo belum ada.
 
 ```c
 static int set_block_ptr(inode_t *in, uint32_t blk_idx) {
-    if (blk_idx < 12) {
-        if (in->direct[blk_idx] != 0) return (int)in->direct[blk_idx];
-        int nb = vfs_alloc_block();
-        if (nb < 0) return -1;
-        in->direct[blk_idx] = (uint32_t)nb;
-        return nb;
-    }
+ if (blk_idx < 12) {
+ if (in->direct[blk_idx] != 0) return (int)in->direct[blk_idx];
+ int nb = vfs_alloc_block();
+ if (nb < 0) return -1;
+ in->direct[blk_idx] = (uint32_t)nb;
+ return nb;
+ }
 
-    /* indirect block */
-    uint32_t ind_idx = blk_idx - 12;
-    if (ind_idx >= 128) return -1;
+ /* indirect block */
+ uint32_t ind_idx = blk_idx - 12;
+ if (ind_idx >= 128) return -1;
 
-    if (in->indirect == 0) {
-        int nb = vfs_alloc_block();
-        if (nb < 0) return -1;
-        in->indirect = (uint32_t)nb;
-        /* zero the indirect block */
-        uint8_t zero[BLOCK_SIZE];
-        mem_zero(zero, BLOCK_SIZE);
-        write_block(in->indirect, zero);
-    }
+ if (in->indirect == 0) {
+ int nb = vfs_alloc_block();
+ if (nb < 0) return -1;
+ in->indirect = (uint32_t)nb;
+ /* zero the indirect block */
+ uint8_t zero[BLOCK_SIZE];
+ mem_zero(zero, BLOCK_SIZE);
+ write_block(in->indirect, zero);
+ }
 
-    uint8_t ind_buf[BLOCK_SIZE];
-    read_block(in->indirect, ind_buf);
-    uint32_t *block_ptrs = (uint32_t *)ind_buf;
+ uint8_t ind_buf[BLOCK_SIZE];
+ read_block(in->indirect, ind_buf);
+ uint32_t *block_ptrs = (uint32_t *)ind_buf;
 
-    if (block_ptrs[ind_idx] == 0) {
-        int nb = vfs_alloc_block();
-        if (nb < 0) return -1;
-        block_ptrs[ind_idx] = (uint32_t)nb;
-        write_block(in->indirect, ind_buf);
-    }
+ if (block_ptrs[ind_idx] == 0) {
+ int nb = vfs_alloc_block();
+ if (nb < 0) return -1;
+ block_ptrs[ind_idx] = (uint32_t)nb;
+ write_block(in->indirect, ind_buf);
+ }
 
-    return (int)block_ptrs[ind_idx];
+ return (int)block_ptrs[ind_idx];
 }
 ```
 
@@ -148,29 +148,29 @@ static int set_block_ptr(inode_t *in, uint32_t blk_idx) {
 
 ```c
 int vfs_read(int fd, char *buf, uint32_t count) {
-    inode_t *in = &vfs.inodes[open_files[fd].inode_number];
-    if (open_files[fd].offset >= in->size) return 0;
+ inode_t *in = &vfs.inodes[open_files[fd].inode_number];
+ if (open_files[fd].offset >= in->size) return 0;
 
-    uint32_t done = 0;
-    while (done < count) {
-        uint32_t off = open_files[fd].offset + done;
-        uint32_t blk_idx = off / BLOCK_SIZE;
-        uint32_t blk_off = off % BLOCK_SIZE;
+ uint32_t done = 0;
+ while (done < count) {
+ uint32_t off = open_files[fd].offset + done;
+ uint32_t blk_idx = off / BLOCK_SIZE;
+ uint32_t blk_off = off % BLOCK_SIZE;
 
-        int blk = get_block_ptr(in, blk_idx);
-        if (blk < 0) break;
+ int blk = get_block_ptr(in, blk_idx);
+ if (blk < 0) break;
 
-        uint8_t block_buf[BLOCK_SIZE];
-        read_block((uint32_t)blk, block_buf);
+ uint8_t block_buf[BLOCK_SIZE];
+ read_block((uint32_t)blk, block_buf);
 
-        uint32_t chunk = BLOCK_SIZE - blk_off;
-        if (chunk > (count - done)) chunk = count - done;
+ uint32_t chunk = BLOCK_SIZE - blk_off;
+ if (chunk > (count - done)) chunk = count - done;
 
-        mem_copy(buf + done, block_buf + blk_off, chunk);
-        done += chunk;
-    }
-    open_files[fd].offset += done;
-    return (int)done;
+ mem_copy(buf + done, block_buf + blk_off, chunk);
+ done += chunk;
+ }
+ open_files[fd].offset += done;
+ return (int)done;
 }
 ```
 
@@ -242,14 +242,14 @@ fd table abstraction di atas vfs. setiap task punya fd_table sendiri.
 
 ```c
 typedef struct {
-    int type;          // FD_TYPE_NONE, FD_TYPE_CONSOLE, FD_TYPE_FILE, FD_TYPE_PIPE
-    int flags;         // FD_FLAG_READ, FD_FLAG_WRITE, FD_FLAG_APPEND
-    int ref_count;
-    uint32_t offset;
-    union {
-        uint32_t vfs_fd;  // for file type
-        uint32_t pipe_id; // for pipe type
-    } data;
+ int type; // FD_TYPE_NONE, FD_TYPE_CONSOLE, FD_TYPE_FILE, FD_TYPE_PIPE
+ int flags; // FD_FLAG_READ, FD_FLAG_WRITE, FD_FLAG_APPEND
+ int ref_count;
+ uint32_t offset;
+ union {
+ uint32_t vfs_fd; // for file type
+ uint32_t pipe_id; // for pipe type
+ } data;
 } fd_entry_t;
 ```
 
@@ -257,9 +257,9 @@ typedef struct {
 
 konversi posix flags (`O_RDONLY=0`, `O_WRONLY=1`, `O_RDWR=2`) ke vfs flags:
 ```c
-if (flags & O_RDWR == O_RDWR)       vfs_flags = VFS_O_READ | VFS_O_WRITE;
-else if (flags & O_WRONLY)          vfs_flags = VFS_O_WRITE;
-else                                vfs_flags = VFS_O_READ;
+if (flags & O_RDWR == O_RDWR) vfs_flags = VFS_O_READ | VFS_O_WRITE;
+else if (flags & O_WRONLY) vfs_flags = VFS_O_WRITE;
+else vfs_flags = VFS_O_READ;
 ```
 
 call `vfs_open(path, vfs_flags)`, setup fd entry dengan vfs_fd yang di-return.
