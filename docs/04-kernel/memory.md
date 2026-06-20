@@ -1,219 +1,87 @@
-# memory management
-
-dokumentasi ini ngebahas gimana OaSis ngatur memory.
-
-## daftar isi
-
-- [physical memory manager](#physical-memory-manager)
-- [bitmap allocation](#bitmap-allocation)
-- [memory map](#memory-map)
-- [api reference](#api-reference)
-
+---
+layout: default
+title: Memory Management
 ---
 
-## physical memory manager
+# Memory Management
 
-**pmm (physical memory manager)** ngatur physical memory (RAM) dalam bentuk page.
+## Physical Memory Manager (PMM)
 
-### konsep page
+The PMM uses a simple **bitmap allocator**.
 
-- 1 page = 4 KB (4096 bytes)
-- memory dibagi jadi page-page
-- alloc dan free per page
+### Algorithm
+- A bitmap of size `BITMAP_SIZE = 1MB` covers `8M` pages (each bit = 1 page).
+- Total addressable memory: `8M * 4KB = 32GB`.
+- `pmm_init(total_memory)`: initially marks all pages as used (0xFF), then iterates from page 0 to `total_pages`, clearing each bit. Finally marks the first 1MB (kernel area) and the kernel binary range (0x100000 to `_end`) as used.
+- `pmm_alloc_page()`: linear scan of the bitmap for the first cleared bit, sets it, decrements `free_pages`, returns the physical address (`page_index * 4096`).
+- `pmm_free_page(phys)`: clears the corresponding bit, increments `free_pages`.
 
-**kenapa 4 KB?**
-- standard di x86
-- match dengan paging granularity
-- balance antara granularity dan overhead
+### Code Path
+```
+malloc() -> kmalloc() -> pmm_alloc_page() -> bitmap scan -> physical page
+```
 
-## bitmap allocation
+## Paging
 
-pmm pake **bitmap** buat track page mana yang free/used.
+OaSis uses **4KB page tables** with a 2-level hierarchy.
 
-### struktur bitmap
+### Page Directory and Page Tables
+- `kernel_page_dir[1024]` (4KB aligned) — one PDE per 4MB of virtual address space.
+- `kernel_page_tables[10][1024]` — static pool of page tables (expanded to 128 entries).
+- Each PTE maps 4KB of virtual to physical memory.
 
+### Initialization (`paging_init`)
+1. Clear all PDEs.
+2. PDE 0 (0x00000000-0x003FFFFF): identity map first 4MB.
+3. PDE 0xC00-0xC03 (0xC0000000-0xC0400000): higher-half kernel mapping (recursive mapping of same physical pages).
+
+### `page_map(virt, phys, flags)`
+1. Compute `dir_index = virt >> 22`, `table_index = (virt >> 12) & 0x3FF`.
+2. If PDE is not present, allocate a new page table from the pool.
+3. Set `PT[table_index] = phys | flags | PTE_PRESENT`.
+4. Propagate USER flag to PDE if needed.
+
+### Process Isolation
+`paging_create_user_dir()` creates a **dedicated page directory per user task**:
+1. Allocate physical page for new PD via `pmm_alloc_page()`.
+2. Map PD temporarily at `0x300000`.
+3. Clone each PDE from `kernel_page_dir`:
+   - Kernel PDEs (0, 0xC00-0xC03): copy PTEs **without** `PTE_USER`.
+   - User PDEs (others): copy PTEs **with** `PTE_USER`.
+4. Return physical address of new PD (stored in `task->context.cr3`).
+5. `paging_switch_dir()` loads CR3, switching to the new page table.
+
+## Kernel Heap (kmalloc)
+
+### Block Structure
+```
+[heap_block_t header: 16 bytes] [payload: N bytes]
+```
+
+`heap_block_t`:
 ```c
-// 1 bit = 1 page
-// bit 0 = page 0, bit 1 = page 1, dst
-uint8_t memory_bitmap[BITMAP_SIZE];
-
-// bit 0 = free, bit 1 = used
+uint32_t size;           // block total size (header + payload)
+uint16_t magic;          // MAGIC_FREE (0xF4EE) or MAGIC_USED (0x1CED)
+uint16_t flags;          // bit 0: free (1) or used (0)
+heap_block_t *next;       // next free block (free list)
+heap_block_t *prev;       // prev free block (free list)
 ```
 
-### contoh
+### Allocation (`kmalloc`)
+1. Align requested size to 8 bytes, add header size.
+2. First-fit scan of the free list.
+3. If block is large enough to split (> `needed + BLOCK_MIN`):
+   - Split: create new free block from remaining space.
+   - Insert new block into free list at sorted position.
+4. Remove block from free list, mark as USED.
+5. If no free block found, expand heap by 4KB (or more), coalesce with last free block if adjacent.
 
-```
-bitmap: 01001100 00000000 ...
-         ││││││││
-         │││││││└─ page 7: free
-         ││││││└── page 6: free
-         │││││└─── page 5: used
-         ││││└──── page 4: used
-         │││└───── page 3: free
-         ││└────── page 2: free
-         │└─────── page 1: used
-         └──────── page 0: free
-```
+### Deallocation (`kfree`)
+1. Validate pointer: check magic number.
+2. Mark block as FREE, add to free list (sorted by address).
+3. Coalesce with adjacent free blocks (next and previous in address order).
 
-### operasi
-
-**alloc page:**
-```c
-void *pmm_alloc_page(void) {
-    for (uint32_t i = 0; i < total_pages; i++) {
-        if (!bitmap_test(i)) {
-            bitmap_set(i);
-            return (void *)(i * PAGE_SIZE);
-        }
-    }
-    return NULL; // out of memory
-}
-```
-
-**free page:**
-```c
-void pmm_free_page(void *addr) {
-    uint32_t page = (uint32_t)addr / PAGE_SIZE;
-    bitmap_clear(page);
-}
-```
-
-## memory map
-
-OaSis pake flat memory model:
-
-```
-address range          description
-─────────────────────────────────────────
-0x00000000-0x000FFFFF  reserved (1 MB)
-  0x00000000-0x000003FF  real mode ivt
-  0x00000400-0x000004FF  bios data area
-  0x00000500-0x00007BFF  free
-  0x00007C00-0x00007DFF  bootloader
-  0x00007E00-0x0007FFFF  free
-  0x00080000-0x0009FFFF  extended bios data area
-  0x000A0000-0x000BFFFF  vga buffer
-  0x000C0000-0x000C7FFF  video bios
-  0x000C8000-0x000EFFFF  expansion
-  0x000F0000-0x000FFFFF  system bios
-
-0x00100000-0x002FFFFF  kernel (2 MB)
-  0x00100000-0x001FFFFF  kernel code + data
-  0x00200000-0x002FFFFF  kernel stack
-
-0x00300000-onwards     free memory
-```
-
-### reserved regions
-
-**vga buffer: 0xB8000-0xBFFFF**
-- 32 KB buat text mode
-- 80x25 characters
-- 2 bytes per character (char + attribute)
-
-**kernel: 0x100000-0x2FFFFF**
-- kernel di-load di 1 MB (standard)
-- 2 MB cukup buat kernel code + data + stack
-
-## api reference
-
-### inisialisasi
-
-```c
-void pmm_init(void);
-```
-
-inisialisasi pmm. dipanggil sekali di startup.
-
-**yang dilakuin:**
-1. detect total memory (dari multiboot info)
-2. inisialisasi bitmap (semua page marked as free)
-3. mark reserved regions sebagai used
-
-### alloc page
-
-```c
-void *pmm_alloc_page(void);
-```
-
-alloc satu page (4 KB).
-
-**return:**
-- pointer ke page (success)
-- `NULL` (out of memory)
-
-**contoh:**
-```c
-void *page = pmm_alloc_page();
-if (page == NULL) {
-    // out of memory!
-}
-```
-
-### free page
-
-```c
-void pmm_free_page(void *addr);
-```
-
-free satu page yang udah di-alloc.
-
-**parameter:**
-- `addr`: pointer ke page yang mau di-free
-
-**contoh:**
-```c
-pmm_free_page(page);
-```
-
-### get free pages
-
-```c
-uint32_t pmm_get_free_pages(void);
-```
-
-dapetin jumlah page yang masih free.
-
-**return:** jumlah free pages
-
-### get total pages
-
-```c
-uint32_t pmm_get_total_pages(void);
-```
-
-dapetin total page di system.
-
-**return:** total pages
-
-### get used pages
-
-```c
-uint32_t pmm_get_used_pages(void);
-```
-
-dapetin jumlah page yang lagi dipake.
-
-**return:** used pages
-
----
-
-## troubleshooting
-
-### out of memory
-
-kalo `pmm_alloc_page()` return `NULL`:
-- cek memory leak (page di-alloc tapi gak di-free)
-- cek total memory yang available
-- reduce memory usage
-
-### memory corruption
-
-kalo ada weird behavior:
-- cek double free (free page yang sama 2x)
-- cek buffer overflow (nulis di luar allocated page)
-- cek use-after-free (pake page yang udah di-free)
-
----
-
-**kembali ke:** [kernel →](readme.md)
+### Heap Expansion
+- Heap starts at `0x02000000` with 64KB initial size.
+- When full, allocates physical pages via PMM and maps them at the heap boundary.
+- Maximum heap size: 16MB.

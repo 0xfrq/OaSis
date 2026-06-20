@@ -1,82 +1,30 @@
-# 01. pendahuluan
+---
+layout: default
+title: Pendahuluan
+---
 
-## apa itu OaSis?
+# 01. Pendahuluan
 
-OaSis adalah sistem operasi edukatif yang dirancang buat kamu yang pengen belajar gimana cara kerja OS dari nol. proyek ini bikin OS 32-bit yang jalan di arsitektur x86 (i386), lengkap dengan booting, kernel, driver, filesystem, dan shell.
+## Tentang OaSis
 
-**catatan:** OaSis bukan OS production-ready. ini murni buat belajar dan eksperimen.
+OaSis adalah sistem operasi 32-bit untuk arsitektur x86 (i386) yang dibangun dari nol untuk tujuan edukasi. Seluruh kode ditulis dalam bahasa C dan assembly, dengan minimum dependencies.
 
-## tujuan proyek
+## Tujuan Pembelajaran
 
-- **belajar fundamental OS**: ngerti gimana booting, kernel, memory management, dll
-- **hands-on experience**: langsung nulis kode, bukan cuma teori
-- **kode yang readable**: semua kode ditulis dengan komentar bahasa indonesia yang jelas
-- **progresif**: dibangun step-by-step, dari paling dasar sampe fitur advanced
+- Memahami proses booting x86 (Real Mode -> Protected Mode)
+- Konsep segmentation dan paging
+- Physical dan virtual memory management
+- Interrupt handling (hardware dan software)
+- Task scheduling dan context switching
+- Filesystem design (inode-based)
+- System call interface
+- User mode (ring 3) execution
+- Proses isolasi via page tables
+- Device driver programming
 
-## prasyarat belajar
+## Prasyarat
 
-sebelum mulai, ada baiknya kamu udah familiar sama:
-
-### wajib
-- **bahasa c**: karena kernel ditulis pake C
-- **dasar assembly x86**: buat ngerti low-level operations
-- **linux command line**: buat build dan test
-
-### recommended
-- struktur data dasar (array, linked list, buffer)
-- konsep operating system (process, memory, filesystem)
-- git dan version control
-
-## tools yang dibutuhin
-
-buat development OaSis, kamu butuh:
-
-```bash
-# compiler dan assembler
-gcc          # compiler C (support -m32)
-nasm         # assembler
-
-# emulator
-qemu-system-i386   # buat run OS di virtual machine
-
-# tools tambahan
-grub-mkrescue      # bikin bootable ISO
-xorriso            # dependency grub
-make               # build system
-```
-
-## cara mulai
-
-1. **clone repository**:
-   ```bash
-   git clone <repo-url>
-   cd OaSis
-   ```
-
-2. **build kernel**:
-   ```bash
-   make
-   ```
-
-3. **run di qemu**:
-   ```bash
-   make run
-   ```
-
-4. **baca dokumentasi**:
-   mulai dari [02-arsitektur](../02-arsitektur/readme.md) buat ngerti gambaran umum sistem
-
-## struktur proyek
-
-```
-OaSis/
-├── src/              # source code
-│   ├── boot/         # bootloader
-│   └── kernel/       # kernel dan driver
-├── include/          # header files
-├── docs/             # dokumentasi (yang lagi kamu baca)
-├── Makefile          # build configuration
-└── readme.md         # quick start guide
-```
-
-selanjutnya: [arsitektur →](../02-arsitektur/readme.md)
+- Pengetahuan dasar C programming
+- Konsep dasar computer architecture
+- Familiar dengan x86 assembly (bantuan)
+- Linux environment untuk build

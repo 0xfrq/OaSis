@@ -1,346 +1,75 @@
-# task scheduling
-
-dokumentasi ini ngebahas gimana OaSis ngatur multiple task/process.
-
-## daftar isi
-
-- [konsep task](#konsep-task)
-- [task structure](#task-structure)
-- [task states](#task-states)
-- [scheduler](#scheduler)
-- [context switching](#context-switching)
-- [api reference](#api-reference)
-
+---
+layout: default
+title: Task Scheduling
 ---
 
-## konsep task
+# Task Scheduling
 
-**task** adalah unit of execution di OaSis. mirip sama process/thread di OS modern.
+## Task Structure
 
-### karakteristik task
-
-- jalan di kernel mode (ring 0)
-- punya stack sendiri
-- punya saved registers
-- di-schedule secara preemptive
-
-**catatan:** OaSis belum support user mode, jadi semua task jalan di kernel.
-
-## task structure
+Each task is represented by a `task_t` structure:
 
 ```c
-typedef struct task {
-    uint32_t id;              // task id
-    uint32_t state;           // ready, running, blocked, dead
-    registers_t regs;         // saved registers (eip, esp, dll)
-    uint32_t *stack;          // kernel stack
-    uint32_t stack_size;      // stack size
-    uint32_t sleep_until;     // tick buat wake up (kalo sleeping)
-    struct task *next;        // pointer ke task berikutnya (linked list)
+typedef struct task_t {
+    uint32_t id;             // Task ID (1-based)
+    uint32_t ppid;           // Parent PID
+    task_state_t state;      // READY, RUNNING, BLOCKED, DEAD
+    int exit_code;           // Exit status
+    task_context_t context;  // Registers + EIP + CR3
+    uint32_t *stack;         // Stack pointer
+    uint32_t stack_base;     // Stack base address
+    struct task_t *next;     // Next task in circular list
+    struct task_t *prev;     // Prev task in circular list
+    fd_table_t *fd_table;    // File descriptor table
 } task_t;
 ```
 
-### registers_t
+## Task Creation
 
+`task_create(function_pointer)` allocates a stack (4 pages = 16KB), maps it as user pages, initializes the context (EIP = function address, EFLAGS = 0x202, CS = 0x08), and adds the task to the circular ready list.
+
+### Stack Layout per Task
+```
+Stack base + 16KB
+  [return address for first function]
+  [... unused ...]
+Stack base
+  4KB page (physical)
+```
+
+## Scheduler Algorithm
+
+The scheduler uses **round-robin** with a circular linked list:
+
+1. Timer IRQ fires at 100Hz (every 10ms).
+2. `timer_interrupt_handler()` increments tick counter and calls `task_switch()`.
+3. `task_switch()` advances `current_task = current_task->next`.
+4. Updates CR3 if the new task has a different page directory.
+5. Returns to the interrupted context (no actual register save/restore — uses the IRET frame already on the stack).
+
+## Task States
+
+- `TASK_READY` (1): Can be scheduled.
+- `TASK_RUNNING` (2): Currently executing.
+- `TASK_BLOCKED` (3): Waiting for an event.
+- `TASK_DEAD` (4): Terminated, waiting for cleanup.
+
+## User Mode Tasks
+
+`task_create_user()` in `task_user.c` creates a ring 3 task:
+1. Takes assembled code from CODE_VIRT (0x40000000).
+2. Maps 4 pages at CODE_VIRT with PTE_USER.
+3. Allocates stack pages at 0xF00000.
+4. Sets up TCB with CS = 0x1B (USER_CS), DS = 0x23 (USER_DS).
+5. Switches to user mode via `switch_to_user()` which builds an iret frame with ring 3 selectors.
+
+## CR3 Switching
+
+When switching between tasks with different page directories, CR3 is updated:
 ```c
-typedef struct {
-    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;  // general purpose
-    uint32_t eip;  // instruction pointer
-    uint32_t eflags;  // flags
-} registers_t;
-```
-
-## task states
-
-task bisa ada di 4 state:
-
-```
-    ┌──────────┐
-    │  ready   │◄──────┐
-    └────┬─────┘       │
-         │ schedule    │ time slice habis
-         ▼             │
-    ┌──────────┐       │
-    │ running  │───────┘
-    └────┬─────┘
-         │ block (wait i/o, sleep)
-         ▼
-    ┌──────────┐
-    │ blocked  │─────► ready (kalo event selesai)
-    └────┬─────┘
-         │ exit
-         ▼
-    ┌──────────┐
-    │   dead   │
-    └──────────┘
-```
-
-### state descriptions
-
-**ready**
-- siap jalan
-- nunggu giliran di schedule
-- ada di ready queue
-
-**running**
-- lagi jalan di cpu
-- cuma 1 task yang running di satu waktu
-
-**blocked**
-- nunggu sesuatu (i/o, sleep, dll)
-- gak bakal di-schedule sampe event selesai
-- contoh: nunggu keyboard input, sleeping
-
-**dead**
-- udah selesai (exit)
-- tinggal di-cleanup
-- resources di-free
-
-## scheduler
-
-OaSis pake **preemptive round-robin scheduler**.
-
-### preemptive
-
-- task bisa di-interrupt di tengah jalan
-- scheduler dipanggil tiap timer interrupt (10 ms)
-- task dapet time slice yang sama
-
-### round-robin
-
-- semua ready task di-schedule secara bergilir
-- fair scheduling (semua task dapet giliran)
-- simple dan predictable
-
-### algoritma
-
-```c
-void schedule(void) {
-    // 1. save current task context
-    save_context(current_task);
-    
-    // 2. update current task state
-    if (current_task->state == RUNNING) {
-        current_task->state = READY;
-    }
-    
-    // 3. find next ready task (round-robin)
-    task_t *next = current_task->next;
-    while (next != current_task) {
-        if (next->state == READY) {
-            break;
-        }
-        next = next->next;
-    }
-    
-    // 4. switch to next task
-    if (next != current_task && next->state == READY) {
-        current_task = next;
-        current_task->state = RUNNING;
-        restore_context(current_task);
-    } else {
-        // no other ready task, continue current
-        current_task->state = RUNNING;
-        restore_context(current_task);
-    }
+if (current_task->context.cr3 != 0) {
+    paging_switch_dir((pde_t *)current_task->context.cr3);
 }
 ```
 
-### kapan scheduler dipanggil?
-
-1. **timer interrupt** - tiap 10 ms (preemptive)
-2. **task block** - pas task nunggu sesuatu
-3. **task exit** - pas task selesai
-4. **task yield** - task voluntary give up cpu
-
-## context switching
-
-**context switch** adalah proses switch dari satu task ke task lain.
-
-### apa yang di-save?
-
-semua register cpu:
-- general purpose registers (eax, ebx, ecx, edx, esi, edi, ebp, esp)
-- instruction pointer (eip)
-- flags (eflags)
-
-### save context
-
-```asm
-save_context:
-    ; save general purpose registers
-    pusha
-    
-    ; save eflags
-    pushf
-    
-    ; save esp ke task structure
-    mov eax, [current_task]
-    mov [eax + task.esp], esp
-    
-    ret
-```
-
-### restore context
-
-```asm
-restore_context:
-    ; load esp dari task structure
-    mov eax, [current_task]
-    mov esp, [eax + task.esp]
-    
-    ; restore eflags
-    popf
-    
-    ; restore general purpose registers
-    popa
-    
-    ret
-```
-
-### context switch flow
-
-```
-task A running
-  ↓
-timer interrupt
-  ↓
-save task A context (registers ke task A structure)
-  ↓
-scheduler pick task B
-  ↓
-restore task B context (registers dari task B structure)
-  ↓
-task B running (lanjut dari terakhir stop)
-```
-
-## api reference
-
-### inisialisasi
-
-```c
-void task_init(void);
-```
-
-inisialisasi task system. bikin idle task.
-
-### create task
-
-```c
-task_t *task_create(void (*entry_point)(void));
-```
-
-bikin task baru.
-
-**parameter:**
-- `entry_point`: function yang bakal dijalanin task
-
-**return:**
-- pointer ke task (success)
-- `NULL` (failed)
-
-**contoh:**
-```c
-void my_task(void) {
-    while (1) {
-        // do something
-    }
-}
-
-task_t *t = task_create(my_task);
-```
-
-### exit task
-
-```c
-void task_exit(void);
-```
-
-keluar dari task sekarang. task bakal di-mark sebagai dead.
-
-**contoh:**
-```c
-void my_task(void) {
-    // do something
-    task_exit();  // selesai
-}
-```
-
-### yield
-
-```c
-void task_yield(void);
-```
-
-voluntary give up cpu. task bakal di-schedule ulang nanti.
-
-**contoh:**
-```c
-void my_task(void) {
-    while (1) {
-        // do something
-        task_yield();  // kasih kesempatan task lain
-    }
-}
-```
-
-### sleep
-
-```c
-void task_sleep(uint32_t ticks);
-```
-
-sleep buat beberapa tick (1 tick = 10 ms).
-
-**parameter:**
-- `ticks`: jumlah tick buat sleep
-
-**contoh:**
-```c
-task_sleep(100);  // sleep 1 second (100 * 10ms)
-```
-
-### get current task
-
-```c
-task_t *task_get_current(void);
-```
-
-dapetin task yang lagi running.
-
-**return:** pointer ke current task
-
----
-
-## contoh: multiple tasks
-
-```c
-void task_a(void) {
-    while (1) {
-        print("a");
-        task_yield();
-    }
-}
-
-void task_b(void) {
-    while (1) {
-        print("b");
-        task_yield();
-    }
-}
-
-void main(void) {
-    task_create(task_a);
-    task_create(task_b);
-    
-    while (1) {
-        task_yield();
-    }
-}
-```
-
-output: `abababab...`
-
----
-
-**kembali ke:** [kernel →](readme.md)
+The `user_return_to_shell` stub restores kernel CR3 on user exit.

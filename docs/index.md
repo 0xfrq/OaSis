@@ -1,61 +1,89 @@
 ---
 layout: default
-title: Beranda
+title: Overview
 ---
 
-# Dokumentasi OaSis
+# OaSis OS Documentation
 
-Selamat datang di dokumentasi resmi **OaSis** - sistem operasi edukatif untuk belajar!
+## What is OaSis?
 
-## Apa itu OaSis?
+OaSis is a **32-bit educational operating system** for x86 (i386) architecture, built entirely from scratch. It boots via GRUB, runs in protected mode with paging, and includes a shell, filesystem, C compiler, built-in assembler, user mode (ring 3) execution, and process isolation.
 
-OaSis adalah sistem operasi 32-bit untuk arsitektur x86 (i386), dibuat khusus buat belajar fundamental OS dari nol. Featuring booting, kernel, driver, filesystem, dan shell - semua dengan kode yang readable dan komentar bahasa Indonesia.
+**Target audience:** Students, hobbyists, and anyone who wants to understand how an OS works at the lowest level.
 
-## Mulai Cepat
+## Project Status
 
-```bash
-# Clone repository
-git clone https://github.com/yourusername/OaSis.git
-cd OaSis
+| Component | Status | Details |
+|-----------|--------|---------|
+| Boot + GDT + IDT | DONE | GRUB multiboot, 32-bit PM, GDT with ring 0/3 segments, TSS |
+| Drivers | DONE | VGA text mode (80x25), PS/2 keyboard, PIT timer, ATA/IDE, PIC |
+| Paging + PMM | DONE | 4KB pages, bitmap PMM, higher-half kernel mapping |
+| Process Isolation | DONE | Per-task page directory, CR3 switching, PTE_USER control |
+| OAFS Filesystem | DONE | Inode-based, 1024 inodes, indirect blocks, multi-block dirs |
+| Syscalls | DONE | 23 syscalls via int 0x80, ring 0 + ring 3 dispatch |
+| Kernel Heap | DONE | Free-list allocator with splitting and coalescing |
+| occ Compiler | DONE | Subset C: int, char, for/while/if, function params |
+| Built-in Assembler | DONE | x86 32-bit, times, labels, segment regs, external syms |
+| User Mode (Ring 3) | DONE | iret to ring 3, user page dir, SYSCALL_USER_EXIT |
+| Logging | DONE | Circular buffer, dmesg, auto-log exceptions |
+| Shell + Utilities | DONE | ls (color), cd, cat, write, echo, hexdump, edit, nasm, occ, user |
 
-# Build
-make
+## Architecture Overview
 
-# Run di QEMU
-make run
+The kernel architecture follows a **monolithic design** with layered subsystems:
+
+```
+Boot (GRUB)
+  -> entry.asm (stack, GDT reload)
+    -> kernel_main()
+      -> GDT init (ring0 + ring3 + TSS)
+      -> IDT init (exceptions + IRQs + int 0x80)
+      -> PIC init (IRQ routing)
+      -> Timer init (100Hz scheduler tick)
+      -> Keyboard init (PS/2)
+      -> Memory init (E820, PMM, Paging)
+      -> Task init (TCB array, scheduler)
+      -> FD init (file descriptors)
+      -> Block init (ATA/IDE cache)
+      -> VFS init (OAFS load or format)
+      -> Syscall init (int 0x80 gate with DPL=3)
+      -> Shell loop (keyboard -> command -> execute)
 ```
 
-## Struktur Dokumentasi
+## Memory Layout
 
-| Bagian | Deskripsi |
-|--------|-----------|
-| [01-pendahuluan](01-pendahuluan/) | Intro, tujuan, prasyarat, cara mulai |
-| [02-arsitektur](02-arsitektur/) | Gambaran umum sistem, komponen utama |
-| [03-booting](03-booting/) | Multiboot, entry point, inisialisasi |
-| [04-kernel](04-kernel/) | Memory, interrupt, task scheduling, syscall |
-| [05-driver](05-driver/) | VGA, keyboard, timer, disk, I/O port |
-| [06-filesystem](06-filesystem/) | OAFS, struktur, operasi, VFS |
-| [07-shell](07-shell/) | Command-line interface, daftar command |
-| [08-apps](08-apps/) | Text editor, cara bikin aplikasi |
-| [09-build](09-build/) | Build system, cara compile & run |
+```
+0x00000000 - 0x003FFFFF   Identity mapped (kernel code, BSS, stack)
+0x00400000 - 0x007FFFFF   Extended kernel mapping (page tables)
+0x00800000 - 0x00EFFFFF   User code pages (ring 3 executables)
+0x00F00000 - 0x00FFFFFF   User stack (ring 3, 16KB)
+0x01000000 - 0x02000000   User heap (brk expansion)
+0x02000000 - 0x03000000   Kernel heap (kmalloc arena)
+0x40000000                CODE_VIRT (assembler code buffer, 16KB)
+0xC0000000+               Higher-half kernel mapping
+```
 
-## Fitur Utama
+## Build System
 
-- **Booting**: Multiboot-compliant, boot via GRUB atau QEMU
-- **Kernel**: 32-bit protected mode, monolithic kernel
-- **Driver**: VGA text mode, keyboard PS/2, timer PIT, ATA/IDE disk
-- **Filesystem**: OAFS (Oasis File System) - inode-based custom filesystem
-- **Shell**: Command-line interface dengan berbagai command
-- **Text Editor**: Editor teks nano-like yang bisa edit file langsung dari shell
+The build uses a simple Makefile with gcc (cross-compiler to i386) and NASM.
 
-## Kontribusi
+### Prerequisites
 
-Ini proyek belajar! Feel free buat fork, modif, atau experiment.Kalau mau kontribusi, tinggal bikin branch, commit, dan PR.
+```
+sudo apt install gcc nasm grub2-common xorriso qemu-system-x86
+```
 
-## Lisensi
+### Commands
 
-Bebas dipake buat belajar. No warranty - ini OS edukasi, bukan production-ready.
+```
+make        # build kernel.bin + oasis.iso
+make clean  # remove build artifacts
+make run    # boot in QEMU
+```
 
----
+### Build Output
 
-**Dibikin dengan kopi dan rasa penasaran.**
+- `kernel.bin` — ELF binary loaded by GRUB at 1MB physical
+- `oasis.iso` — ISO image with GRUB bootloader
+
+The linker script (`src/boot/linker.ld`) places the kernel at 1MB with `.text`, `.rodata`, `.data`, `.bss` sections.
