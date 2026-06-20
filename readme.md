@@ -18,15 +18,15 @@
 | **User Space Utilities** | [DONE] `cat`, `echo`, `write` via shell built-in + user mode `.asm` |
 | **Indirect Blocks** | [DONE] File > 6KB (12 direct + 128 indirect = 70KB per file) |
 | **Kernel Heap** | [DONE] `kmalloc`/`kfree` / `kcalloc` / `krealloc` free-list allocator |
-| **Logging** | [DONE] Circular buffer, `dmesg` command, auto-log exception |
-| **Filesystem (OAFS)** | [DONE] Hardened: `touch`, `rm`, `ls`, `cd`, `write`, `cat` |
-| **occ Compiler** | [DONE] Subset C: `int`, `if`, `while`, `printf`, `malloc` |
-| **Built-in Assembler** | [DONE] `nasm` + `times` + segment registers + label push |
-| **User Space Libc** | [DONE] `usr_printf`, `usr_malloc`, `usr_gets` via syscalls |
+| **Logging** | [DONE] Circular buffer, `dmesg` command, auto-log exception, clean boot screen |
+| **Filesystem (OAFS)** | [DONE] Multi-block directory (168 entries), indirect blocks, hardened, color ls |
+| **occ Compiler** | [DONE] Subset C: `int`, `char`, `if/else`, `while`, `for`, function params, array subscript, `printf`, `malloc` |
+| **Built-in Assembler** | [DONE] `nasm` + `times` + segment registers + label push + tab support |
+| **User Space Libc** | [DONE] `usr_printf`, `usr_malloc`, `usr_gets`, `usr_puts` via syscalls |
 | **Mini Libc** | [DONE] `printf`, `scanf`, `putchar`, `gets`, `sprintf`, `atoi` |
 | **GDT + TSS** | [DONE] User segments (0x18/0x20) + Task State Segment |
 | **Per-task CR3** | [DONE] Task switching with page directory switching |
-| **Text Editor** | [DONE] Nano-like editor (`edit`) |
+| **Text Editor** | [DONE] Nano-like editor (`edit`) + tab support |
 | **Drivers** | [DONE] Keyboard PS/2, VGA text mode, ATA/IDE, PIT timer, Block cache |
 
 ---
@@ -114,13 +114,16 @@
   `_sys_open`, `_sys_read`, `_sys_write_fd`, `_sys_close`, `_usr_printf`, dll
 - Forward/backward label references + auto-patch
 - Multi-page output buffer (up to 16KB)
+- Tab support in editor (4 spaces)
 
 ### occ C Compiler
-- Subset of C: `int`, `if`, `while`, function calls
+- Subset of C: `int`, `char`, `if/else`, `while`, `for`, function calls with params
 - String literals, integer arithmetic, comparison operators
 - Auto-generated assembly -> assembled by built-in assembler
 - `printf`, `malloc`, `free`, `calloc`, `realloc` via external symbols
 - Support `_sys_open`, `_sys_read`, `_sys_write_fd`, `_sys_close` for file I/O
+- Array subscript `arr[i]` support
+- Function parameters (`int add(int a, int b)`)
 - Compiles with `occ /path/to/file.c`, runs via `nasm`
 
 ### Logging Infrastructure
@@ -243,8 +246,9 @@ make run      # boot di QEMU
 - [ ] **Better preemptive scheduler** -- real context save/restore
 - [ ] **Framebuffer** -- VBE linear framebuffer graphics
 - [ ] **Double fault handler** -- recover instead of triple fault
+- [ ] **User space utilities via occ** -- cat, ls, echo in C
 - [ ] **TCP/IP stack** -- networking support
-- [ ] **Enhanced `occ` compiler** -- arrays, structs, for loops, char*
+- [ ] **Better preemptive scheduler** -- real context save/restore
 
 ---
 
