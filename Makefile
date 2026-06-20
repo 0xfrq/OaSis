@@ -4,7 +4,7 @@
 # ============================================
 
 CC = gcc
-CFLAGS = -m32 -nostdlib -fno-builtin -fno-stack-protector -ffreestanding -fno-pie -fno-pic -Wall -Wextra -Iinclude
+CFLAGS = -m32 -nostdlib -fno-builtin -fno-stack-protector -ffreestanding -fno-pie -fno-pic -Wall -Wextra -Wno-unused-function -Iinclude
 AS = nasm
 ASFLAGS = -f elf32
 LD = ld

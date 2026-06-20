@@ -21,7 +21,7 @@
 #define MAX_PATH_LENGTH 256
 #define MAX_FILENAME_LENGTH 32
 /* Satu direktori sekarang muat di satu block 512-byte: 512 / (4 + 32) = 14 entries */
-#define MAX_DIR_ENTRIES 14
+#define MAX_DIR_ENTRIES 168
 
 #define INODE_TYPE_FREE 0
 #define INODE_TYPE_FILE 1

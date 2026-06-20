@@ -193,83 +193,127 @@ static uint32_t local_strlen(const char *s) {
     return n;
 }
 
-void kernel_main(void) {
+/* Boot splash screen */
+static void boot_screen(void) {
     vga_clear();
-    vga_cursor_init();
-    vga_print("=== OASIS ===\n");
 
-    vga_print("[*] Setting up GDT with user mode segments...\n");
+    /* Draw top border */
+    for (int x = 0; x < 80; x++) {
+        vga_write_char(x, 4, '-', 0x03);  /* cyan on black */
+        vga_write_char(x, 16, '-', 0x03);
+    }
+
+    /* Draw side borders */
+    for (int y = 5; y < 16; y++) {
+        vga_write_char(20, y, '|', 0x03);
+        vga_write_char(59, y, '|', 0x03);
+    }
+
+    /* Draw "OaSis OS" title at center (row 7, around col 36) */
+    char *title = "OaSis OS";
+    int tx = 34, ty = 8;
+    for (int i = 0; title[i]; i++) {
+        vga_write_char(tx + i, ty, title[i], 0x0F);  /* bright white */
+    }
+
+    /* Subtitle */
+    char *sub = "32-bit x86 Educational OS";
+    int sx = 27, sy = 10;
+    for (int i = 0; sub[i]; i++) {
+        vga_write_char(sx + i, sy, sub[i], 0x07);  /* gray */
+    }
+
+    /* Loading animation */
+    char *loadtext = "Booting";
+    int lx = 33, ly = 13;
+    for (int i = 0; loadtext[i]; i++) {
+        vga_write_char(lx + i, ly, loadtext[i], 0x0A);  /* green */
+    }
+    vga_set_color(15, 0);
+}
+
+/* Booting animation state */
+static int boot_phase = 0;
+
+/* Update loading dots */
+static void boot_progress(void) {
+    int bx = 40, by = 13;
+    /* Clear dots */
+    vga_write_char(bx, by, ' ', 0x0A);
+    vga_write_char(bx+1, by, ' ', 0x0A);
+    vga_write_char(bx+2, by, ' ', 0x0A);
+    /* Write dots */
+    int ndots = (boot_phase % 4);
+    for (int i = 0; i < ndots; i++) {
+        vga_write_char(bx + i, by, '.', 0x0A);
+    }
+    boot_phase++;
+}
+
+void kernel_main(void) {
+    boot_screen();
+
     gdt_init();
+    boot_progress();
 
-    vga_print("Initializing interrupt system...\n\n");
-
-    vga_print("[*] Setting up IDT...\n");
     idt_init();
 
-    vga_print("[*] Setting up PIC...\n");
     pic_init();
+    boot_progress();
 
-    vga_print("[*] Initializing timer (100 Hz)...\n");
     timer_init(100);
     pic_enable_irq(0);
 
-    vga_print("[*] Initializing keyboard...\n");
     keyboard_init();
     pic_enable_irq(1);
+    boot_progress();
 
         log_init();
     vga_print("[*] Enabling interrupts...\n");
     asm volatile("sti");
+    boot_progress();
 
     vga_print("\n=== OASIS Ready ===\n");
     vga_print("Interrupts enabled\n\n");
 
-    vga_print("[*] Initializing memory system...\n");
     
-    vga_print("[*] Detecting memory (e820)...\n");
     memory_init();
     memory_print_map();
 
     uint32_t total_mem = memory_get_total_usable();
-    vga_print("Total usable memory: ");
     char buf[16];
     itoa(total_mem / 1024 / 1024, buf, 10);
-    vga_print(buf);
-    vga_print("MB\n\n");
-
     pmm_init(total_mem);
 
     paging_init();
     paging_enable();
+    boot_progress();
 
     vga_print("\n[+] Memory system initialized\n");
 
-    vga_print("\n[*] Initializing task manager...\n");
     task_init();
-
-    vga_print("\n[*] Initializing I/O subsystem...\n");
     fd_init();
 
-    vga_print("\n[*] Initializing block device layer...\n");
     block_init();
-
-    vga_print("\n[*] Initializing filesystem (OAFS)...\n");
     if (vfs_init() != 0) {
         vga_print("[-] Filesystem init failed\n");
     }
 
-    vga_print("\n[*] Initializing system calls...\n");
     syscall_init();
-
-    vga_print("[*] Creating tasks...\n");
 
     task_create(task_idle);
     task_create(task_worker);
     task_create(task_block_test);
 
-    vga_print("[+] Tasks created and ready\n");
-    vga_print("[*] Tasks managed by scheduler (timer-driven)\n");
-    vga_print("Type 'help' for commands\n\n");
+    
+    
+    
+
+    vga_clear();
+    vga_set_color(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
+    vga_print("=== OaSis OS ===\n");
+    vga_set_color(15, VGA_COLOR_BLACK);
+    vga_print("Type help for commands\n\n");
 
     char input[INPUT_MAX];
     int index = 0;

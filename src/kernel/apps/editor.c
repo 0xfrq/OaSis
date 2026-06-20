@@ -411,6 +411,14 @@ void editor_run(const char *path) {
                 insert_newline();
                 break;
 
+            case '\t':
+                /* tab -> 4 spasi */
+                insert_char(' ');
+                insert_char(' ');
+                insert_char(' ');
+                insert_char(' ');
+                break;
+
             default:
                 /* karakter yang bisa di-print */
                 if (key >= 32 && key < 127) {

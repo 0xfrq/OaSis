@@ -13,6 +13,8 @@ typedef enum {
     AST_RETURN,
     AST_IF,
     AST_WHILE,
+    AST_FOR,
+    AST_ARRAY_SUBSCRIPT,
     AST_CALL,
     AST_COMPOUND, /* { ... } */
 
@@ -34,6 +36,7 @@ typedef struct ast_node {
     int int_value;          /* For literals and op precedence */
     char *string_value;     /* For identifiers and function names */
     token_type_t op;        /* For binary operators */
+    struct ast_node *params;  /* For function parameters */
 } ast_node_t;
 
 /* Parser Context */

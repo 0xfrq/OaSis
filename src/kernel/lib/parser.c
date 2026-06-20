@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "vga.h"
 #include "string.h"
+#include <stddef.h>
 
 /* Global static pool to avoid malloc */
 ast_node_t ast_pool[AST_POOL_SIZE];
@@ -29,6 +30,7 @@ static ast_node_t *parse_statement(parser_t *p);
 static ast_node_t *parse_declaration(parser_t *p);
 static ast_node_t *parse_if(parser_t *p);
 static ast_node_t *parse_while(parser_t *p);
+static ast_node_t *parse_for(parser_t *p);
 static ast_node_t *parse_return(parser_t *p);
 static ast_node_t *parse_expression(parser_t *p);
 static ast_node_t *parse_assignment(parser_t *p);
@@ -76,8 +78,7 @@ ast_node_t *parser_parse_program(parser_t *p) {
             vga_print("\n");
             p->has_error = 0;
         }
-        /* only 'int' at top level - skip anything else */
-        if (p->current_token.type != TOKEN_INT) {
+        if (p->current_token.type != TOKEN_INT && p->current_token.type != TOKEN_CHAR_TYPE && p->current_token.type != TOKEN_VOID) {
             parser_advance(p);
             continue;
         }
@@ -104,10 +105,10 @@ static ast_node_t *parse_function(parser_t *p) {
     ast_node_t *node = ast_new_node(AST_FUNCTION);
 
     /* Return type (only int supported for now) */
-    if (p->current_token.type == TOKEN_INT) {
+    if (p->current_token.type == TOKEN_INT || p->current_token.type == TOKEN_CHAR_TYPE || p->current_token.type == TOKEN_VOID) {
         parser_advance(p);
+        if (p->current_token.type == TOKEN_STAR) parser_advance(p); /* skip * in char* */
     } else {
-        /* maybe EOF, or unknown */
         return 0;
     }
 
@@ -125,7 +126,41 @@ static ast_node_t *parse_function(parser_t *p) {
     }
 
     parser_eat(p, TOKEN_LPAREN);
+
+    /* Parse parameters: type name (, type name)* */
+    ast_node_t *params = NULL;
+    ast_node_t *last_param = NULL;
+    if (p->current_token.type != TOKEN_RPAREN) {
+        while (1) {
+            /* Type (int, char, or char*) */
+            if (p->current_token.type != TOKEN_INT && p->current_token.type != TOKEN_CHAR_TYPE) {
+                p->has_error = 1;
+                break;
+            }
+            parser_advance(p);
+            if (p->current_token.type == TOKEN_STAR) parser_advance(p); /* optional * */
+
+            /* Parameter name */
+            if (p->current_token.type != TOKEN_IDENTIFIER) {
+                p->has_error = 1;
+                break;
+            }
+
+            ast_node_t *param = ast_new_node(AST_DECLARATION);
+            param->string_value = p->current_token.value;
+            parser_advance(p);
+
+            /* Link parameter list via right pointer */
+            if (!params) params = param;
+            else last_param->right = param;
+            last_param = param;
+
+            if (p->current_token.type == TOKEN_COMMA) parser_advance(p);
+            else break;
+        }
+    }
     parser_eat(p, TOKEN_RPAREN);
+    node->params = params; /* Need to add params field to ast_node_t */
 
     node->body = parse_compound(p);
     return node;
@@ -158,11 +193,14 @@ static ast_node_t *parse_compound(parser_t *p) {
 static ast_node_t *parse_statement(parser_t *p) {
     switch (p->current_token.type) {
         case TOKEN_INT:
+        case TOKEN_CHAR_TYPE:
             return parse_declaration(p);
         case TOKEN_IF:
             return parse_if(p);
         case TOKEN_WHILE:
             return parse_while(p);
+        case TOKEN_FOR:
+            return parse_for(p);
         case TOKEN_RETURN:
             return parse_return(p);
         case TOKEN_LBRACE:
@@ -180,7 +218,9 @@ static ast_node_t *parse_statement(parser_t *p) {
 /* parse_declaration = 'int' identifier ('=' expression)? ';' */
 static ast_node_t *parse_declaration(parser_t *p) {
     ast_node_t *node = ast_new_node(AST_DECLARATION);
-    parser_eat(p, TOKEN_INT);
+    int is_char = (p->current_token.type == TOKEN_CHAR_TYPE);
+    parser_eat(p, is_char ? TOKEN_CHAR_TYPE : TOKEN_INT);
+    (void)is_char;
 
     if (p->current_token.type == TOKEN_IDENTIFIER) {
         node->string_value = p->current_token.value;
@@ -222,6 +262,34 @@ static ast_node_t *parse_while(parser_t *p) {
     parser_eat(p, TOKEN_LPAREN);
     node->condition = parse_expression(p);
     parser_eat(p, TOKEN_RPAREN);
+    node->body = parse_statement(p);
+    return node;
+}
+
+/* parse_for = 'for' '(' expr? ';' expr? ';' expr? ')' statement */
+static ast_node_t *parse_for(parser_t *p) {
+    ast_node_t *node = ast_new_node(AST_FOR);
+    parser_eat(p, TOKEN_FOR);
+    parser_eat(p, TOKEN_LPAREN);
+
+    /* Init statement (optional) */
+    if (p->current_token.type != TOKEN_SEMICOLON) {
+        node->left = parse_expression(p);
+    }
+    parser_eat(p, TOKEN_SEMICOLON);
+
+    /* Condition (optional, default true) */
+    if (p->current_token.type != TOKEN_SEMICOLON) {
+        node->condition = parse_expression(p);
+    }
+    parser_eat(p, TOKEN_SEMICOLON);
+
+    /* Increment (optional) */
+    if (p->current_token.type != TOKEN_RPAREN) {
+        node->right = parse_expression(p);
+    }
+    parser_eat(p, TOKEN_RPAREN);
+
     node->body = parse_statement(p);
     return node;
 }
@@ -331,6 +399,16 @@ static ast_node_t *parse_factor(parser_t *p) {
         node->string_value = tok.value;
         parser_advance(p);
 
+        /* Check for array subscript */
+        if (p->current_token.type == TOKEN_LBRACKET) {
+            ast_node_t *sub_node = ast_new_node(AST_ARRAY_SUBSCRIPT);
+            sub_node->string_value = node->string_value; /* array name */
+            parser_advance(p);
+            sub_node->left = parse_expression(p); /* index */
+            parser_eat(p, TOKEN_RBRACKET);
+            return sub_node;
+        }
+
         /* Check for function call */
         if (p->current_token.type == TOKEN_LPAREN) {
             ast_node_t *call_node = ast_new_node(AST_CALL);
@@ -386,6 +464,8 @@ void ast_print(ast_node_t *node, int indent) {
         case AST_RETURN:       vga_print("Return\n"); break;
         case AST_IF:           vga_print("If\n"); break;
         case AST_WHILE:        vga_print("While\n"); break;
+        case AST_FOR:          vga_print("For\n"); break;
+        case AST_ARRAY_SUBSCRIPT: vga_print("ArraySub[]\n"); break;
         case AST_CALL:         vga_print("Call: "); vga_print(node->string_value); vga_print("\n"); break;
         case AST_COMPOUND:     vga_print("Compound\n"); break;
         case AST_INTEGER_LITERAL: {

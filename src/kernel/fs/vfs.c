@@ -28,7 +28,7 @@
 
 static vfs_state_t vfs;
 static uint8_t block_bitmap[MAX_DATA_BLOCKS / 8 + 1];
-static dir_entry_t dir_scratch[BLOCK_SIZE / sizeof(dir_entry_t)];
+static dir_entry_t dir_scratch[MAX_DIR_ENTRIES];
 
 /* Error prefix for VFS messages */
 #define VFS_ERR(msg) vga_print("vfs: "), vga_print(msg), vga_print("\n")
@@ -167,14 +167,18 @@ static int dir_read_entries(uint32_t dir_inode, dir_entry_t *entries, uint32_t *
     inode_t *dir = &vfs.inodes[dir_inode];
     if (dir->type != INODE_TYPE_DIR) return -1;
     if (dir->direct[0] == 0) { *count = 0; return 0; }
-    uint8_t buf[BLOCK_SIZE];
-    if (read_block(dir->direct[0], buf) != 0) return -1;
-    uint32_t max = BLOCK_SIZE / sizeof(dir_entry_t);
-    dir_entry_t *disk_entries = (dir_entry_t *)buf;
+
     uint32_t n = 0;
-    for (uint32_t i = 0; i < max; i++) {
-        if (disk_entries[i].inode_number != 0) {
-            entries[n++] = disk_entries[i];
+    uint32_t max_per_block = BLOCK_SIZE / sizeof(dir_entry_t);
+    for (int bi = 0; bi < 12; bi++) {
+        if (dir->direct[bi] == 0) break;
+        uint8_t buf[BLOCK_SIZE];
+        if (read_block(dir->direct[bi], buf) != 0) break;
+        dir_entry_t *de = (dir_entry_t *)buf;
+        for (uint32_t i = 0; i < max_per_block; i++) {
+            if (de[i].inode_number != 0) {
+                entries[n++] = de[i];
+            }
         }
     }
     *count = n;
@@ -185,28 +189,35 @@ static int dir_write_entries(uint32_t dir_inode, dir_entry_t *entries, uint32_t 
     if (dir_inode >= MAX_INODES) return -1;
     inode_t *dir = &vfs.inodes[dir_inode];
     if (dir->type != INODE_TYPE_DIR) return -1;
-    if (dir->direct[0] == 0) {
-        int b = vfs_alloc_block();
-        if (b < 0) return -1;
-        dir->direct[0] = (uint32_t)b;
-    }
-    uint8_t buf[BLOCK_SIZE];
-    mem_zero(buf, BLOCK_SIZE);
-    uint32_t max = BLOCK_SIZE / sizeof(dir_entry_t);
-    if (count > max) count = max;
-    dir_entry_t *disk_entries = (dir_entry_t *)buf;
-    for (uint32_t i = 0; i < count; i++) {
-        disk_entries[i] = entries[i];
+
+    uint32_t max_per_block = BLOCK_SIZE / sizeof(dir_entry_t);
+    uint32_t blocks_needed = (count + max_per_block - 1) / max_per_block;
+    if (blocks_needed < 1) blocks_needed = 1;
+    if (blocks_needed > 12) blocks_needed = 12;
+
+    uint32_t written = 0;
+    for (uint32_t bi = 0; bi < blocks_needed; bi++) {
+        uint8_t buf[BLOCK_SIZE];
+        mem_zero(buf, BLOCK_SIZE);
+        if (dir->direct[bi] == 0) {
+            int b = vfs_alloc_block();
+            if (b < 0) return -1;
+            dir->direct[bi] = (uint32_t)b;
+        }
+        dir_entry_t *de = (dir_entry_t *)buf;
+        uint32_t in_block = 0;
+        while (written < count && in_block < max_per_block) {
+            de[in_block++] = entries[written++];
+        }
+        if (write_block(dir->direct[bi], buf) != 0) return -1;
     }
     dir->size = count * sizeof(dir_entry_t);
     dir->mtime = vfs_get_ticks();
-    if (write_block(dir->direct[0], buf) != 0) return -1;
     return save_inode(dir_inode);
 }
 
 static int dir_find_child(uint32_t dir_inode, const char *name, uint32_t *child_inode) {
-    uint8_t tmp_buf[BLOCK_SIZE];
-    dir_entry_t *entries = (dir_entry_t *)tmp_buf;
+    dir_entry_t *entries = dir_scratch;
     uint32_t count = 0;
     if (dir_read_entries(dir_inode, entries, &count) != 0) return -1;
     for (uint32_t i = 0; i < count; i++) {
@@ -747,8 +758,7 @@ int vfs_rmdir(const char *path) {
     if (in->type != INODE_TYPE_DIR) { VFS_ERR("rmdir: not a dir"); return -1; }
 
     /* Check if directory is empty */
-    uint8_t rmdir_buf[BLOCK_SIZE];
-    dir_entry_t *entries = (dir_entry_t *)rmdir_buf;
+    dir_entry_t *entries = dir_scratch;
     uint32_t count = 0;
     if (dir_read_entries(ino, entries, &count) != 0) return -1;
     if (count != 0) { VFS_ERR("rmdir: not empty"); return -1; }
@@ -787,8 +797,7 @@ int vfs_list(const char *path, char *buf, uint32_t max_len) {
     if (vfs_resolve_path(path, &ino) != 0) return -1;
     if (vfs.inodes[ino].type != INODE_TYPE_DIR) return -1;
 
-    uint8_t list_buf[BLOCK_SIZE];
-    dir_entry_t *entries = (dir_entry_t *)list_buf;
+    dir_entry_t *entries = dir_scratch;
     uint32_t count = 0;
     if (dir_read_entries(ino, entries, &count) != 0) return -1;
 

@@ -72,6 +72,7 @@ static void gen_expression(codegen_t *cg, ast_node_t *expr);
 static void gen_declaration(codegen_t *cg, ast_node_t *decl);
 static void gen_if(codegen_t *cg, ast_node_t *ifnode);
 static void gen_while(codegen_t *cg, ast_node_t *whilenode);
+static void gen_for(codegen_t *cg, ast_node_t *fornode);
 static void gen_return(codegen_t *cg, ast_node_t *ret);
 static void gen_assignment(codegen_t *cg, ast_node_t *assign);
 static void gen_binary_op(codegen_t *cg, ast_node_t *op);
@@ -173,6 +174,22 @@ static void gen_function(codegen_t *cg, ast_node_t *func) {
     emit_str(cg, "X");
     emit_line(cg, "  ; stack for locals");
 
+    /* Load parameters from stack (passed via [ebp+8], [ebp+12], etc) */
+    int param_offset = 8; /* first param at [ebp+8] */
+    ast_node_t *param = func->params;
+    while (param) {
+        int pv = alloc_var(param->string_value);
+        if (param_offset == 8) {
+            /* First param: already on stack */
+        }
+        char tmp_str[16];
+        int_to_str(param_offset, tmp_str);
+        emit_str(cg, "  mov eax, [ebp + "); emit_str(cg, tmp_str); emit_line(cg, "]");
+        emit_store_var(cg, pv);
+        param = param->right;
+        param_offset += 4;
+    }
+
     gen_compound(cg, func->body);
 
     int stack_size = var_count * 4;
@@ -199,9 +216,10 @@ static void gen_statement(codegen_t *cg, ast_node_t *stmt) {
     if (!stmt) return;
     switch (stmt->type) {
         case AST_DECLARATION: gen_declaration(cg, stmt); break;
-        case AST_ASSIGNMENT:  gen_assignment(cg, stmt); break;
+        case AST_ASSIGNMENT:
         case AST_IF:          gen_if(cg, stmt); break;
         case AST_WHILE:       gen_while(cg, stmt); break;
+        case AST_FOR:          gen_for(cg, stmt); break;
         case AST_RETURN:      gen_return(cg, stmt); break;
         case AST_COMPOUND:    gen_compound(cg, stmt); break;
         case AST_CALL:        gen_function_call(cg, stmt); break;
@@ -266,6 +284,46 @@ static void gen_while(codegen_t *cg, ast_node_t *whilenode) {
     gen_statement(cg, whilenode->body);
     emit_str(cg, "  jmp ");
     emit_str(cg, top_label);
+    emit_line(cg, "");
+    emit_str(cg, end_label);
+    emit_line(cg, ":");
+}
+
+static void gen_for(codegen_t *cg, ast_node_t *fornode) {
+    char loop_label[32], end_label[32];
+    gen_label(cg, loop_label, "forlp");
+    gen_label(cg, end_label, "forend");
+
+    /* Init */
+    if (fornode->left) {
+        gen_expression(cg, fornode->left);
+        /* Init biasanya assignment, hasil di eax bisa diabaikan */
+    }
+
+    emit_str(cg, loop_label);
+    emit_line(cg, ":");
+
+    /* Condition */
+    if (fornode->condition) {
+        gen_expression(cg, fornode->condition);
+    } else {
+        emit_line(cg, "  mov eax, 1");
+    }
+    emit_line(cg, "  cmp eax, 0");
+    emit_str(cg, "  je ");
+    emit_str(cg, end_label);
+    emit_line(cg, "");
+
+    /* Body */
+    gen_statement(cg, fornode->body);
+
+    /* Increment */
+    if (fornode->right) {
+        gen_expression(cg, fornode->right);
+    }
+
+    emit_str(cg, "  jmp ");
+    emit_str(cg, loop_label);
     emit_line(cg, "");
     emit_str(cg, end_label);
     emit_line(cg, ":");
@@ -372,6 +430,20 @@ static void gen_expression(codegen_t *cg, ast_node_t *expr) {
         case AST_CALL:
             gen_function_call(cg, expr);
             break;
+        case AST_ARRAY_SUBSCRIPT: {
+            /* array[index] - access array element */
+            gen_expression(cg, expr->left);  /* index expression */
+            emit_line(cg, "  shl eax, 2");   /* index * 4 (sizeof int) */
+            int v = find_var(expr->string_value);
+            if (v >= 0) {
+                char b[16]; int_to_str(v, b);
+                emit_str(cg, "  lea ebx, [ebp - "); emit_str(cg, b); emit_line(cg, "]");
+                emit_line(cg, "  mov eax, [ebx + eax]");
+            } else {
+                emit_str(cg, "  mov eax, ["); emit_str(cg, expr->string_value); emit_line(cg, " + eax * 4]");
+            }
+            break;
+        }
         case AST_ASSIGNMENT:
             gen_assignment(cg, expr);
             break;
