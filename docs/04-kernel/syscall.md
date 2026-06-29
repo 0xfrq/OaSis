@@ -31,7 +31,7 @@ Same mechanism — the handler detects ring 3 by checking CS at [esp+36] and han
 
 ## Syscall Dispatch
 
-`int_80_handler(syscall_num, arg1, arg2, arg3)` delegats to `syscall_dispatch()`, which uses a switch statement to call the appropriate handler function.
+`int_80_handler(syscall_num, arg1, arg2, arg3)` delegates to `syscall_dispatch()`, which uses a switch statement to call the appropriate handler function.
 
 ## Complete Syscall Table
 

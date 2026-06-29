@@ -1,6 +1,6 @@
 # virtual filesystem (vfs)
 
-dokumentasi ini ngebahas vfs layer di OaSis.
+dokumentasi ini membahas vfs layer di OaSis.
 
 ## daftar isi
 
@@ -13,11 +13,11 @@ dokumentasi ini ngebahas vfs layer di OaSis.
 
 ## apa itu vfs
 
-**vfs (virtual filesystem)** adalah abstraction layer yang bikin semua filesystem keliatan sama.
+**vfs (virtual filesystem)** adalah abstraction layer yang membuat semua filesystem terlihat sama.
 
 ### kenapa butuh vfs?
 
-bayangin kamu punya 2 filesystem:
+bayangin kamu memiliki 2 filesystem:
 - oafs di hard disk
 - fat32 di usb drive
 
@@ -40,7 +40,7 @@ vfs_close(fd);
 
 ### manfaat
 
-- **unified API**: satu API buat semua filesystem
+- **unified API**: satu API untuk semua filesystem
 - **swap filesystem**: gampang ganti filesystem tanpa ubah aplikasi
 - **mount points**: bisa mount multiple filesystem
 
@@ -65,7 +65,7 @@ vfs_close(fd);
 
 ## open file table
 
-vfs maintain table buat track file yang lagi kebuka.
+vfs maintain table untuk track file yang lagi kebuka.
 
 ### struktur
 
@@ -122,23 +122,23 @@ vfs define standard operations yang harus di-implement sama filesystem.
 | `read(fd, buf, size)` | baca dari file |
 | `write(fd, buf, size)` | tulis ke file |
 | `seek(fd, offset, whence)` | pindah posisi |
-| `stat(path, buf)` | dapetin file info |
+| `stat(path, buf)` | mendapatkan file info |
 
 ### directory operations
 
 | operasi | deskripsi |
 |---------|-----------|
-| `mkdir(path)` | bikin directory |
+| `mkdir(path)` | membuat directory |
 | `rmdir(path)` | hapus directory |
 | `readdir(path, entry)` | baca isi directory |
 | `chdir(path)` | pindah current directory |
-| `getcwd(buf, size)` | dapetin current directory |
+| `getcwd(buf, size)` | mendapatkan current directory |
 
 ### management operations
 
 | operasi | deskripsi |
 |---------|-----------|
-| `create(path)` | bikin file baru |
+| `create(path)` | membuat file baru |
 | `unlink(path)` | hapus file |
 | `rename(old, new)` | rename file/directory |
 | `truncate(path, size)` | potong file |

@@ -1,7 +1,7 @@
 title: "OaSis OS Documentation"
-description: "Documentation for the OaSis educational operating system"
-baseurl: "/OaSis"
-url: "https://yourusername.github.io"
+description: "OaSis — x86 32-bit operating system from scratch"
+baseurl: ""
+url: "https://oasis.fariqdoing.tech"
 markdown: kramdown
 highlighter: rouge
 permalink: pretty
@@ -27,3 +27,5 @@ nav:
     url: /08-apps/
   - title: Build
     url: /09-build/
+  - title: Changelog
+    url: /10-changelog/

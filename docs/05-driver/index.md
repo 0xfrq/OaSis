@@ -75,7 +75,7 @@ char keyboard_getchar(void) {
 }
 ```
 
-`sti; hlt` adalah atomik di x86: interrupt di-enable pas cpu hlt, jadi kalo ada keyboard irq, cpu bakal bangun.
+`sti; hlt` adalah atomik di x86: interrupt di-enable saat cpu hlt, jadi kalau ada keyboard irq, cpu akan bangun.
 
 ### keymap
 
@@ -115,7 +115,7 @@ void timer_interrupt_handler(void) {
 }
 ```
 
-100hz -> tiap 10ms trigger sekali. `ticks` counter bisa dipake buat uptime.
+100hz -> tiap 10ms trigger sekali. `ticks` counter bisa dipakai untuk uptime.
 
 ### timer_get_ticks / timer_sleep
 
@@ -232,7 +232,7 @@ ata_read_sector(uint32_t lba, void *buffer) {
 
 file: `src/kernel/drivers/block.c`
 
-entry cache untuk ngurangin akses disk langsung.
+entry cache untuk mengurangi akses disk langsung.
 
 ```c
 typedef struct {

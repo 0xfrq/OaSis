@@ -51,13 +51,13 @@ INTERNAL_MAX = 256.
 
 ### help
 
-print daftar command. kalo `help more` tampilkan semua command termasuk yang jarang dipake.
+print daftar command. kalau `help more` tampilkan semua command termasuk yang jarang dipakai.
 
 ### ls [path]
 
 list directory. parse output dari `vfs_list()`:
-- kalo type 'd' (directory): warna kuning (VGA_COLOR_YELLOW)
-- kalo type 'f' (file): warna putih
+- kalau type 'd' (directory): warna kuning (VGA_COLOR_YELLOW)
+- kalau type 'f' (file): warna putih
 
 output dari vfs_list format: `d nama_dir\nf nama_file\n`
 
@@ -74,7 +74,7 @@ if (out[j] == 'd') {
 
 ### cd <path>
 
-panggil `vfs_chdir(arg)`. kalo return != 0, print "cd: failed".
+panggil `vfs_chdir(arg)`. kalau return != 0, print "cd: failed".
 
 ### pwd
 
@@ -124,7 +124,7 @@ if (fd >= 0) {
 
 ### append <path> <text>
 
-sama kaya write tapi pake VFS_O_APPEND.
+sama seperti write tapi pakai VFS_O_APPEND.
 
 ### echo <text>
 

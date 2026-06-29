@@ -1,6 +1,6 @@
 # i/o port
 
-dokumentasi ini ngebahas gimana OaSis komunikasi sama hardware lewat port I/O.
+dokumentasi ini membahas bagaimana OaSis komunikasi sama hardware lewat port I/O.
 
 ## daftar isi
 
@@ -18,13 +18,13 @@ dokumentasi ini ngebahas gimana OaSis komunikasi sama hardware lewat port I/O.
 ### karakteristik
 
 - **separate address space**: I/O ports punya address space sendiri (64 KB)
-- **special instructions**: pake `in` dan `out` instructions
-- **legacy**: banyak dipake di hardware lama (VGA, keyboard, PIT, dll)
+- **special instructions**: pakai `in` dan `out` instructions
+- **legacy**: banyak dipakai di hardware lama (VGA, keyboard, PIT, dan lain-lain)
 
-### kenapa masih dipake?
+### kenapa masih dipakai?
 
-- hardware legacy masih pake port I/O
-- simpler buat some devices
+- hardware legacy masih pakai port I/O
+- simpler untuk some devices
 - backward compatibility
 
 ## port i/o vs memory mapped i/o
@@ -64,7 +64,7 @@ mov [0xB8000], al  ; tulis ke memory-mapped device
 
 ## instruksi i/o
 
-x86 punya 2 instruksi buat port I/O:
+x86 punya 2 instruksi untuk port I/O:
 
 ### in (baca dari port)
 
@@ -94,7 +94,7 @@ out port, eax    ; outl(port, eax)
 
 ## api reference
 
-OaSis provide helper functions buat port I/O:
+OaSis provide helper functions untuk port I/O:
 
 ### baca byte
 
@@ -220,7 +220,7 @@ void io_wait(void) {
 
 **kenapa butuh delay?**
 - beberapa device lambat
-- perlu waktu buat process command
+- perlu waktu untuk process command
 - prevent race condition
 
 ---
@@ -236,8 +236,8 @@ uint8_t scancode = inb(0x60);
 ### tulis ke VGA
 
 ```c
-// VGA controller gak pake port I/O, pake MMIO
-// tapi ini contoh buat device lain
+// VGA controller tidak pakai port I/O, pakai MMIO
+// tapi ini contoh untuk device lain
 outb(0x3C4, 0x02);  // select register
 outb(0x3C5, 0x0F);  // write data
 ```
@@ -252,7 +252,7 @@ uint16_t data = inw(0x1F0);  // baca 1 word dari ATA data port
 
 ## common ports
 
-daftar port yang sering dipake di OaSis:
+daftar port yang sering dipakai di OaSis:
 
 ### keyboard (0x60-0x64)
 
@@ -300,11 +300,11 @@ daftar port yang sering dipake di OaSis:
 
 ## troubleshooting
 
-### port gak response
+### port tidak response
 
 - cek port address bener
 - cek device enabled
-- cek I/O permission (kalo ada)
+- cek I/O permission (kalau ada)
 
 ### data corrupt
 

@@ -21,7 +21,7 @@ static uint32_t cursor_pos = 0; // posisi cursor di buffer
 
 | key | aksi |
 |-----|------|
-| ctrl+x | exit (simpen dulu kalo ada perubahan) |
+| ctrl+x | exit (simpan dulu kalau ada perubahan) |
 | ctrl+s | save ke file via vfs_write |
 | arrow up/down | pindah baris |
 | arrow left/right | pindah karakter |
@@ -35,7 +35,7 @@ static uint32_t cursor_pos = 0; // posisi cursor di buffer
 
 ### rendering
 
-tampilkan banyak baris dari posisi scroll. setiap baris di-render langsung ke vga buffer. status bar di baris 24 (terakhir) nampilin filename, line, column.
+tampilkan banyak baris dari posisi scroll. setiap baris di-render langsung ke vga buffer. status bar di baris 24 (terakhir) menampilkan filename, line, column.
 
 ### save
 
@@ -53,8 +53,8 @@ assembler x86 32-bit lengkap ~banyak baris. menghasilkan machine code yang langs
 asm_assemble(code, &exec_addr):
 1. copy code ke input_buf[]
 2. proses baris per baris:
- - kalo ada ':' -> register label
- - kalo ada instruksi -> parse mnemonic + operand -> emit byte
+ - kalau ada ':' -> register label
+ - kalau ada instruksi -> parse mnemonic + operand -> emit byte
 3. apply patches (forward reference)
 4. alloc physical page di CODE_VIRT (0x40000000)
 5. copy code_buf ke CODE_VIRT
@@ -75,7 +75,7 @@ static struct {
 ```c
 static struct {
  int pos; /* byte pertama yang perlu di-patch */
- int from; /* posisi setelah instruksi (buat hitung relatif) */
+ int from; /* posisi setelah instruksi (untuk menghitung relatif) */
  char target[32]; /* nama label tujuan */
  int type; /* 0 = rel8, 1 = rel32, 2 = abs32 */
 } patches[MAX_PATCHES]; // MAX_PATCHES = 128
@@ -90,7 +90,7 @@ typedef struct {
 } extern_sym_t;
 ```
 
-assembler nyari external symbol di tabel ini kalo label gak ketemu di labels[].
+assembler mencari external symbol di tabel ini kalau label tidak ketemu di labels[].
 
 ### instruksi didukung
 
@@ -138,7 +138,7 @@ if (streq(mnem, "times")) {
 
 ### gen_push dengan label
 
-sebelumnya push cuma support register dan immediate. sekarang support label:
+sebelumnya push hanya mendukung register dan immediate. sekarang mendukung label:
 
 ```c
 uint32_t imm;
@@ -161,7 +161,7 @@ compiler subset c yang terdiri dari beberapa komponen:
 
 ### lexer (lexer.c)
 
-tokenizer yang baca input karakter per karakter.
+tokenizer yang membaca input karakter per karakter.
 
 ```c
 typedef enum {
@@ -198,10 +198,10 @@ typedef struct ast_node {
  ast_type_t type;
  struct ast_node *left; /* operand kiri / child pertama */
  struct ast_node *right; /* operand kanan / sibling */
- struct ast_node *condition;/* buat if/while */
- struct ast_node *body; /* buat function, if, while, for */
- struct ast_node *else_body;/* buat if-else */
- struct ast_node *params; /* buat function parameter */
+ struct ast_node *condition;/* untuk if/while */
+ struct ast_node *body; /* untuk function, if, while, for */
+ struct ast_node *else_body;/* untuk if-else */
+ struct ast_node *params; /* untuk function parameter */
  int int_value;
  char *string_value;
  token_type_t op;
@@ -213,7 +213,7 @@ typedef struct ast_node {
 ```c
 static ast_node_t *parse_function(parser_t *p) {
  parser_eat(p, TOKEN_INT); /* atau TOKEN_CHAR_TYPE atau TOKEN_VOID */
- /* optional * buat pointer type */
+ /* optional * untuk pointer type */
  /* ... function name ... */
  parser_eat(p, TOKEN_LPAREN);
 
@@ -260,7 +260,7 @@ static ast_node_t *parse_for(parser_t *p) {
 
 ### parsing array subscript
 
-di `parse_factor`, setelah identifier, kalo ketemu `[`:
+di `parse_factor`, setelah identifier, kalau ditemukan `[`:
 ```c
 if (p->current_token.type == TOKEN_LBRACKET) {
  ast_node_t *sub = ast_new_node(AST_ARRAY_SUBSCRIPT);

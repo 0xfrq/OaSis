@@ -1,6 +1,6 @@
 # struktur filesystem
 
-dokumentasi ini ngebahas detail struktur oafs di disk.
+dokumentasi ini membahas detail struktur oafs di disk.
 
 ## daftar isi
 
@@ -74,11 +74,11 @@ struct boot_sector {
 } __attribute__((packed));
 ```
 
-**catatan:** OaSis gak pake semua field ini, cuma buat compatibility.
+**catatan:** OaSis tidak menggunakan semua field ini, hanya untuk compatibility.
 
 ## superblock
 
-**superblock** nyimpen metadata filesystem.
+**superblock** menyimpan metadata filesystem.
 
 ### lokasi
 
@@ -108,7 +108,7 @@ struct superblock {
 ### field penting
 
 **magic number**: `0x4F414653` ("OAFS" dalam ASCII)
-- dipake buat verify ini oafs filesystem
+- digunakan untuk verify ini oafs filesystem
 
 **total_blocks**: jumlah total block di disk
 - termasuk boot, superblock, bitmap, inode, data
@@ -201,7 +201,7 @@ bitmap_blocks = (bitmap_size + 511) / 512
 
 ## inode table
 
-**inode table** nyimpen semua inode.
+**inode table** menyimpan semua inode.
 
 ### lokasi
 
@@ -263,7 +263,7 @@ struct inode {
 
 ### lokasi
 
-setelah inode table sampe end of disk
+setelah inode table sampai end of disk
 
 ### ukuran
 
@@ -274,15 +274,15 @@ data_blocks = total_blocks - (1 + 1 + bitmap_blocks + inode_table_blocks)
 ### block types
 
 **file data block**:
-- nyimpen actual file content
+- menyimpan actual file content
 - 512 bytes per block
 
 **directory block**:
-- nyimpen directory entries
+- menyimpan directory entries
 - format khusus (lihat di bawah)
 
 **indirect block**:
-- nyimpen block pointers (4 bytes each)
+- menyimpan block pointers (4 bytes each)
 - 512 / 4 = 128 pointers per block
 
 ## directory structure

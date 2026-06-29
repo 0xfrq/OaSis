@@ -13,7 +13,7 @@ file: `src/kernel/core/gdt.c`, header: `include/gdt.h`
 
 ### struktur
 
-entry gdt, tiap entry :
+entry gdt, setiap entry :
 
 ```c
 typedef struct {
@@ -70,9 +70,9 @@ gdt_set_entry(5, (uint32_t)&tss, sizeof(tss) - 1, 0x89, 0x40);
 
 1. set gdt_ptr.limit dan .base
 2. set entry 0-5
-3. panggil `lgdtl`
+3. memanggil `lgdtl`
 4. reload segment registers (ds/es/fs/gs = 0x10)
-5. far jump ke 0x08 buat reload cs
+5. far jump ke 0x08 untuk reload cs
 6. `ltrw` dengan selector tss = 0x28
 
 ### reload assembly
@@ -123,7 +123,7 @@ typedef struct {
 
 ### isr macro
 
-macros di interrupt.asm buat generate 32 isr handler:
+macros di interrupt.asm untuk generate 32 isr handler:
 
 ```asm
 %macro ISR_NOERRCODE 1
@@ -142,7 +142,7 @@ isr_%1:
 %endmacro
 ```
 
-yang pake errcode: 8 (double fault), 10 (invalid tss), 11 (segment not present), 12 (stack segment), 13 (gpf), 14 (page fault).
+yang menggunakan errcode: 8 (double fault), 10 (invalid tss), 11 (segment not present), 12 (stack segment), 13 (gpf), 14 (page fault).
 
 ### isr_common_stub
 
@@ -187,7 +187,7 @@ isr_common_stub:
 [esp+52] = eflags
 ```
 
-kalo dari ring 3, tambah user_esp di [esp+56] dan user_ss di [esp+60].
+kalau dari ring 3, tambah user_esp di [esp+56] dan user_ss di [esp+60].
 
 ### interrupt_handler
 
@@ -241,7 +241,7 @@ irq_0:
 ```
 
 **irq_1 (keyboard)**:
-sama, tapi panggil `keyboard_interrupt_handler()` -> baca scancode dari port 0x60, konversi, simpen ke circular buffer.
+sama, tapi memanggil `keyboard_interrupt_handler()` -> membaca scancode dari port 0x60, konversi, simpen ke circular buffer.
 
 ### int 0x80 handler -- deteksi ring
 
@@ -420,7 +420,7 @@ static uint32_t free_pages = 0;
 
 #### pmm_init(total_memory)
 
-1. set semua byte ke 0xFF (semua pages dipake)
+1. set semua byte ke 0xFF (semua pages dipakai)
 2. `total_pages = total_memory / 4096`
 3. loop dari page 0 sampe total_pages: clear bit (mark free)
 4. mark page 0-0x100000 (first 1mb) sebagai used
@@ -464,10 +464,10 @@ static int page_table_index = 5; // 0-4 udah dipake init
 
 1. clear semua pde
 2. pde[0]: identity map 0-4mb
- - pakai `kernel_page_tables[0]`
- - tiap pte: `(i * 4096) | PTE_PRESENT | PTE_WRITE`
+ - menggunakan `kernel_page_tables[0]`
+ - setiap pte: `(i * 4096) | PTE_PRESENT | PTE_WRITE`
 3. pde[0xC00..0xC03]: higher-half
- - pakai `kernel_page_tables[1..4]`
+ - menggunakan `kernel_page_tables[1..4]`
  - mapping fisik yang sama dengan identity map
 
 #### page_map(virt, phys, flags)
@@ -492,13 +492,13 @@ pt[table_index] = (phys & PAGE_MASK) | flags | PTE_PRESENT;
 
 #### paging_create_user_dir (process isolation)
 
-1. alloc physical page buat page directory via `pmm_alloc_page()`
+1. alloc physical page untuk page directory via `pmm_alloc_page()`
 2. map sementara di 0x00300000
 3. clone setiap pde dari kernel_page_dir:
  - pde index 0 (identity map): copy tanpa PTE_USER
  - pde index 0xC00-0xC03 (higher-half): copy tanpa PTE_USER
  - pde lainnya: copy dengan PTE_USER
-4. tiap clone pake page table fisik baru dari `pmm_alloc_page()`
+4. setiap clone menggunakan page table fisik baru dari `pmm_alloc_page()`
 5. return physical address
 
 #### paging_switch_dir(dir)
@@ -532,8 +532,8 @@ sizeof = .
 
 1. `needed = align_up(sizeof(header) + size)`, minimal payload
 2. first-fit scan free list
-3. kalo block cukup gede (`>= needed + BLOCK_MIN`): split
-4. kalo gak ketemu: expand heap (alloc page via pmm), coalesce dengan last block kalo adjacent
+3. kalau block cukup gede (`>= needed + BLOCK_MIN`): split
+4. kalau tidak ketemu: expand heap (alloc page via pmm), coalesce dengan last block kalau adjacent
 
 #### kfree(ptr)
 
@@ -602,7 +602,7 @@ typedef struct {
 
 ### task_create(function_pointer)
 
-1. alloc page (16kb) buat stack: `pmm_alloc_page()` -> `page_map()` di 0x10000 + task_count * 4096
+1. alloc page (16kb) untuk stack: `pmm_alloc_page()` -> `page_map()` di 0x10000 + task_count * 4096
 2. setup task context:
  - esp = stack_base + TASK_STACK_SIZE - 4
  - ebp = esp
@@ -669,7 +669,7 @@ asm volatile(
 
 file: `src/kernel/lib/klibc.c`
 
-fungsi standard c yang berjalan di kernel mode, pake vga_putc/vga_print langsung.
+fungsi standard c yang berjalan di kernel mode, menggunakan vga_putc/vga_print langsung.
 
 ### printf
 
@@ -753,7 +753,7 @@ int klibc_atoi(const char *s) {
 
 file: `src/kernel/lib/usrlib.c`
 
-fungsi yang pake int 0xsyscall, bukan langsung hardware. aman dipanggil dari ring 3.
+fungsi yang menggunakan int 0xsyscall, bukan langsung hardware. aman dipanggil dari ring 3.
 
 ### syscall wrappers
 
@@ -784,11 +784,11 @@ int usr_printf(const char *fmt, ...) {
 }
 ```
 
-setiap putchar pake `sys3(SYSCALL_WRITE_FD, 1, &ch, 1)`.
+setiap putchar menggunakan `sys3(SYSCALL_WRITE_FD, 1, &ch, 1)`.
 
 ### usr_malloc
 
-pake brk syscall:
+menggunakan brk syscall:
 ```c
 void *usr_malloc(uint32_t size) {
  uint32_t cur = sys1(SYSCALL_BRK, 0);
@@ -836,7 +836,7 @@ void log_printf(const char *fmt, ...) {
 }
 ```
 
-overflow: kalo write_pos == read_pos, read_pos maju (data lama di-overwrite).
+overflow: kalau write_pos == read_pos, read_pos maju (data lama di-overwrite).
 
 ### log_exception
 

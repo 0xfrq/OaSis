@@ -1,37 +1,34 @@
-# OaSis -- Sistem Operasi Edukasi
+# OaSis
 
 <p align="center">
-  <b>Sistem operasi 32-bit x86 dari nol, dibikin untuk belajar.</b><br>
+  <b>x86 32-bit operating system from scratch.</b><br>
   <code>Ring 3 user mode</code> * <code>23 syscalls</code> * <code>Process isolation</code> * <code>OAFS filesystem</code> * <code>occ C compiler</code>
 </p>
 
 ---
 
-## Pencapaian Terkini
+## Status
 
-| Area | Status |
-|------|--------|
-| **Ring 3 User Mode** | [DONE] User code jalan di ring 3, `user /file.asm` |
-| **Process Isolation** | [DONE] Per-task page directory + CR3 switching, user blocked dari kernel pages |
-| **System Calls** | [DONE] 23 syscalls (0-22) via `int 0x80` + eksternal symbol wrappers |
-| **User Heap (brk)** | [DONE] `SYSCALL_BRK` untuk expand heap user |
-| **User Space Utilities** | [DONE] `cat`, `echo`, `write` via shell built-in + user mode `.asm` |
-| **Indirect Blocks** | [DONE] File > 6KB (12 direct + 128 indirect = 70KB per file) |
-| **Kernel Heap** | [DONE] `kmalloc`/`kfree` / `kcalloc` / `krealloc` free-list allocator |
-| **Logging** | [DONE] Circular buffer, `dmesg` command, auto-log exception, clean boot screen |
-| **Filesystem (OAFS)** | [DONE] Multi-block directory (168 entries), indirect blocks, hardened, color ls |
-| **occ Compiler** | [DONE] Subset C: `int`, `char`, `if/else`, `while`, `for`, function params, array subscript, `printf`, `malloc` |
-| **Built-in Assembler** | [DONE] `nasm` + `times` + segment registers + label push + tab support |
-| **User Space Libc** | [DONE] `usr_printf`, `usr_malloc`, `usr_gets`, `usr_puts` via syscalls |
-| **Mini Libc** | [DONE] `printf`, `scanf`, `putchar`, `gets`, `sprintf`, `atoi` |
-| **GDT + TSS** | [DONE] User segments (0x18/0x20) + Task State Segment |
-| **Per-task CR3** | [DONE] Task switching with page directory switching |
-| **Text Editor** | [DONE] Nano-like editor (`edit`) + tab support |
-| **Drivers** | [DONE] Keyboard PS/2, VGA text mode, ATA/IDE, PIT timer, Block cache |
+| Area | |
+|------|--|
+| Ring 3 User Mode | User code runs at ring 3, `user /file.asm` |
+| Process Isolation | Per-task page directory + CR3 switching, user blocked from kernel pages |
+| System Calls | 23 syscalls (0-22) via `int 0x80` + external symbol wrappers |
+| Indirect Blocks | Files > 6KB (12 direct + 128 indirect = 70KB per file) |
+| Kernel Heap | `kmalloc`/`kfree`/`kcalloc`/`krealloc` free-list allocator |
+| Logging | Circular buffer, `dmesg` command, auto-log exception |
+| Filesystem (OAFS) | Multi-block directory (168 entries), indirect blocks, color ls |
+| occ Compiler | Subset C: `int`, `if/else`, `while`, `for`, function params, array subscript, `printf`, `malloc` |
+| Built-in Assembler | NASM-style syntax, `times` directive, label push, segment registers |
+| User Space Libc | `usr_printf`, `usr_malloc`, `usr_gets`, `usr_puts` via syscalls |
+| Mini Libc | `printf`, `scanf`, `putchar`, `gets`, `sprintf`, `atoi` |
+| GDT + TSS | User segments (0x18/0x20) + Task State Segment |
+| Text Editor | Nano-like editor (`edit` command) |
+| Drivers | PS/2 keyboard, VGA text mode, ATA/IDE PIO, PIT timer, block cache |
 
 ---
 
-## Fitur Detail
+## Features
 
 ### Kernel & Boot
 - Multiboot-compliant (GRUB-compatible)
@@ -41,24 +38,21 @@
 - PIC (Programmable Interrupt Controller)
 - VGA text mode (80x25, 16 colors)
 
-### Manajemen Memori
+### Memory Management
 - E820 memory detection
-- Physical Memory Manager (PMM) -- bitmap-based page allocator
-- Paging (4KB pages) -- identity map + higher-half kernel (0xC0000000+)
-- **Process isolation** -- each user task gets a clone of kernel page dir
-  - Kernel pages (identity map, higher-half) -> **no PTE_USER**
-  - User pages (code, stack, brk) -> **with PTE_USER**
-- **Per-task CR3 switching** -- task_switch() updates CR3 otomatis
-- Kernel heap allocator -- free-list with splitting and coalescing
+- Physical Memory Manager (PMM) — bitmap-based page allocator
+- Paging (4KB pages) — identity map + higher-half kernel (0xC0000000+)
+- Process isolation — each user task gets a clone of kernel page dir
+- Per-task CR3 switching — task_switch() updates CR3 automatically
+- Kernel heap allocator — free-list with splitting and coalescing
 - `kmalloc`, `kfree`, `kcalloc`, `krealloc`
 
 ### User Mode (Ring 3)
-- **Ring 3 execution**: user code via `user /file.asm` command
-- **Process isolation**: dedicated page directory per user task
-- **Syscall interface**: 23 system calls via `int 0x80`
-- **Exit handling**: `SYSCALL_USER_EXIT` (21) via iret redirect -> `user_return_to_shell`
-- **User heap**: `SYSCALL_BRK` (22) for dynamic memory allocation
-- **User fd_table**: each user task has its own file descriptor table
+- Ring 3 execution via `user /file.asm` command
+- Dedicated page directory per user task
+- 23 system calls via `int 0x80`
+- User heap via `SYSCALL_BRK` for dynamic memory allocation
+- Per-task fd_table
 
 ### System Calls (int 0x80)
 ```
@@ -83,120 +77,80 @@
 18  SYSCALL_BLOCK_READ  - read block device
 19  SYSCALL_BLOCK_WRITE - write block device
 20  SYSCALL_BLOCK_FLUSH - flush block cache
-21  SYSCALL_USER_EXIT   - exit user mode -> return to shell
+21  SYSCALL_USER_EXIT   - exit user mode, return to shell
 22  SYSCALL_BRK         - expand/shrink user heap
 ```
 
 ### Filesystem (OAFS)
-- Custom inode-based filesystem (Oasis File System)
+- Inode-based filesystem (Oasis File System)
 - 1024 inodes, 8192 blocks, 512 bytes/block
 - 12 direct block pointers + 1 indirect block (128 pointers) = ~70KB per file
-- Support file ukuran besar via **indirect blocks**
 - Directory support with path resolution (absolute + relative)
-- **Hardened**: proper error messages, atomic unlink/rmdir, path validation
 - Free block bitmap, inode table, superblock
 
-### Shell (kernel_main)
-- Command-line interface dengan prompt `oasis(/)`
-- Command: `help`, `clear`, `uptime`, `meminfo`, `dmesg`, `syscall`
+### Shell
+- Command-line interface with `oasis(/)` prompt
+- Commands: `help`, `clear`, `uptime`, `meminfo`, `dmesg`, `syscall`
 - File ops: `ls` (color-coded), `cd`, `pwd`, `mkdir`, `touch`, `rm`, `rmdir`, `cat`, `write`, `append`, `hexdump`
 - Development: `edit`, `asm`, `nasm`, `occ`, `user`
-- Other: `echo`, `taskinfo`, `fdinfo`, `pipetest`, `disktest`, `iotest`
 
-### Built-in x86 Assembler (nasm)
-- Full instruction set: `mov`, `add`, `sub`, `cmp`, `xor`, `and`, `or`
+### Built-in Assembler
+- Instructions: `mov`, `add`, `sub`, `cmp`, `xor`, `and`, `or`
 - Control flow: `jmp`, `je/jz`, `jne/jnz`, `call`, `ret`
 - Stack: `push` (reg + imm + label), `pop`, `pusha`, `popa`
-- Data: `db` with string + mixed format + numeric support
-- **`times` directive** -- repeat instruction N times
+- Data: `db` with string + mixed format + numeric
+- `times` directive
 - Segment registers: `mov ds, ax`, `mov ax, ds`
-- External symbols via tabel: `_printf`, `_scanf`, `_malloc`, `_free`,
-  `_sys_open`, `_sys_read`, `_sys_write_fd`, `_sys_close`, `_usr_printf`, dll
-- Forward/backward label references + auto-patch
-- Multi-page output buffer (up to 16KB)
-- Tab support in editor (4 spaces)
+- External symbol table: `_printf`, `_scanf`, `_malloc`, `_usr_printf`, etc.
+- Forward/backward label references with auto-patch
 
 ### occ C Compiler
-- Subset of C: `int`, `char`, `if/else`, `while`, `for`, function calls with params
+- Subset C: `int`, `char`, `if/else`, `while`, `for`, function calls with params
 - String literals, integer arithmetic, comparison operators
-- Auto-generated assembly -> assembled by built-in assembler
-- `printf`, `malloc`, `free`, `calloc`, `realloc` via external symbols
-- Support `_sys_open`, `_sys_read`, `_sys_write_fd`, `_sys_close` for file I/O
-- Array subscript `arr[i]` support
-- Function parameters (`int add(int a, int b)`)
-- Compiles with `occ /path/to/file.c`, runs via `nasm`
-
-### Logging Infrastructure
-- Circular buffer (4096 bytes)
-- Auto-log exceptions with register dump (int_num, err_code, cr2, eip)
-- `dmesg` command to view log
-- Safe for interrupt context
-- Works alongside VGA output
+- Auto-generated assembly, assembled by built-in assembler
+- `printf`, `malloc`, `free` via external symbols
+- Array subscript support
+- Compile with `occ /path/to/file.c`, run via `nasm`
 
 ### User Space Library (usrlib)
 - Functions using `int 0x80` syscalls internally
-- `usr_printf`, `usr_puts`, `usr_putchar` -- output via syscall
-- `usr_gets`, `usr_getchar` -- input via syscall
-- `usr_malloc`, `usr_free` -- memory via `SYSCALL_BRK`
-- Available as external symbols from built-in assembler
+- `usr_printf`, `usr_puts`, `usr_putchar` — output via syscall
+- `usr_gets`, `usr_getchar` — input via syscall
+- `usr_malloc`, `usr_free` — memory via `SYSCALL_BRK`
 
 ### Text Editor
-- Nano-like editor: `edit /path/to/file`
+- Nano-like: `edit /path/to/file`
 - Arrow keys, Ctrl+S (save), Ctrl+X (exit), scrolling
 - Status bar with filename, line, column
-- Auto-save on exit
 
 ---
 
-## Struktur Proyek
+## Project Structure
 
 ```
 OaSis/
 |-- src/
 |   |-- boot/          # Entry point, linker script
-|   |   |-- entry.asm
-|   |   |-- linker.ld
 |   |-- kernel/
-|       |-- core/      # Kernel inti
-|       |   |-- kernel.c       # Shell + main loop
-|       |   |-- gdt.c          # GDT + TSS + user segments
-|       |   |-- memory.c       # E820 memory detection
-|       |   |-- paging.c       # Paging + process isolation
-|       |   |-- pmm.c          # Physical memory manager
-|       |   |-- vga.c          # VGA text mode driver
-|       |-- drivers/   # Hardware drivers
-|       |   |-- ata.c, block.c, idt.c, io.c
-|       |   |-- keyboard.c, pic.c, timer.c
-|       |-- fs/        # Filesystem
-|       |   |-- fd.c          # File descriptor layer
-|       |   |-- vfs.c         # OAFS filesystem (hardened + indirect)
-|       |-- lib/       # Library
-|       |   |-- string.c, lexer.c, parser.c, codegen.c
-|       |   |-- klibc.c       # Kernel libc (printf/scanf)
-|       |   |-- heap.c        # Kernel heap (kmalloc/kfree)
-|       |   |-- log.c         # Logging infrastructure
-|       |   |-- usrlib.c      # User space libc (via syscalls)
-|       |-- syscall/   # System call layer
-|       |   |-- syscall.c     # Dispatcher (23 syscalls)
-|       |   |-- interrupt.asm # int 0x80 handler (ring 0+3)
-|       |-- tasks/     # Task management
-|       |   |-- task.c        # Scheduler + TCB + CR3 switching
-|       |   |-- task_user.c   # User mode task creation
-|       |-- apps/      # User applications (kernel-level)
-|           |-- editor.c      # Text editor
-|           |-- asm.c         # Built-in assembler
+|   |   |-- core/      # Kernel core
+|   |   |-- drivers/   # Hardware drivers
+|   |   |-- fs/        # Filesystem
+|   |   |-- lib/       # Libraries (klibc, usrlib, occ, heap)
+|   |   |-- syscall/   # System call layer
+|   |   |-- tasks/     # Task management
+|   |   |-- apps/      # User applications (editor, assembler)
 |-- include/           # Header files
 |-- iso/               # GRUB boot files
-|-- docs/              # Documentation (Jekyll)
+|-- docs/              # Documentation
 |-- Makefile
 |-- readme.md
 ```
 
 ---
 
-## Cara Build & Run
+## Build & Run
 
-### Prasyarat
+### Prerequisites
 ```bash
 sudo apt install gcc nasm grub2-common xorriso qemu-system-x86
 ```
@@ -205,26 +159,26 @@ sudo apt install gcc nasm grub2-common xorriso qemu-system-x86
 ```bash
 make          # build kernel.bin + oasis.iso
 make clean    # clean build artifacts
-make run      # boot di QEMU
+make run      # boot in QEMU
 ```
 
 ### Test User Mode
-```bash
-# Di shell OaSis:
+```
+# In OaSis shell:
 > edit /hello.asm
-> user /hello.asm       # jalanin di ring 3
+> user /hello.asm       # run at ring 3
 ```
 
 ---
 
-## Catatan Teknis
+## Technical Notes
 
 ### User Mode Entry/Exit Flow
-1. `user /file.asm` -> `asm_assemble()` -> `task_create_user()` -> `paging_create_user_dir()`
-2. `switch_to_user()` -> `iret` ke ring 3 (CPU pop CS=0x1B, SS=0x23)
-3. User code run with **dedicated page directory** (kernel pages hidden)
+1. `user /file.asm` → `asm_assemble()` → `task_create_user()` → `paging_create_user_dir()`
+2. `switch_to_user()` → `iret` to ring 3 (CPU pops CS=0x1B, SS=0x23)
+3. User code runs with dedicated page directory
 4. On `SYSCALL_USER_EXIT`: handler overwrites iret frame with kernel values
-5. `iret` redirects to `user_return_to_shell` -> restore CR3 -> return to shell
+5. `iret` redirects to `user_return_to_shell` → restore CR3 → return to shell
 
 ### Memory Layout
 ```
@@ -240,22 +194,16 @@ make run      # boot di QEMU
 
 ---
 
-## Rencana Ke Depan
+## Changelog
 
-- [ ] **User space utilities via `occ`** -- port cat, ls, echo ke C
-- [ ] **Better preemptive scheduler** -- real context save/restore
-- [ ] **Framebuffer** -- VBE linear framebuffer graphics
-- [ ] **Double fault handler** -- recover instead of triple fault
-- [ ] **User space utilities via occ** -- cat, ls, echo in C
-- [ ] **TCP/IP stack** -- networking support
-- [ ] **Better preemptive scheduler** -- real context save/restore
+Recent fixes and additions are documented in [docs/10-changelog/index.md](docs/10-changelog/index.md).
 
 ---
 
-## Lisensi
+## License
 
-Bebas dipakai untuk belajar. No warranty -- ini OS edukasi, bukan production-ready.
+MIT — feel free to use and modify.
 
 ---
 
-**Dibikin dengan kopi, rasa penasaran, dan banyak debugging.** 
+**Built with curiosity and a lot of debugging.**

@@ -5,25 +5,25 @@ title: pendahuluan
 
 # pendahuluan
 
-oasis adalah sistem operasi 32-bit x86 yang dibangun dari nol.
+oasis adalah sistem operasi 32-bit x86 yang saya bangun dari awal sebagai proyek pribadi.
 
-## tujuan
+## yang dipelajari
 
-- memahami booting x86 (real mode -> protected mode)
-- konsep segmentation, gdt, idt
+- proses booting x86 (real mode ke protected mode)
+- segmentation, gdt, dan idt
 - physical memory management dengan bitmap
 - paging dan virtual memory
 - interrupt handling (hardware dan software)
 - task scheduling dan context switching
-- filesystem design (inode-based)
+- desain filesystem berbasis inode
 - system call interface (int 0x80)
-- user mode (ring 3) execution
-- process isolation via page tables
-- device driver programming
+- eksekusi user mode (ring 3)
+- isolasi proses melalui page tables
+- pemrograman device driver
 
 ## prasyarat
 
-- dasar c programming
-- konsep computer architecture
-- familiar dengan x86 assembly (membantu)
-- linux environment untuk build
+- dasar pemrograman C
+- konsep arsitektur komputer
+- pemahaman dasar assembly x86 (membantu)
+- environment linux untuk build

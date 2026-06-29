@@ -1,6 +1,6 @@
 # vga driver
 
-dokumentasi ini ngebahas gimana OaSis nampilin teks ke layar.
+dokumentasi ini membahas bagaimana OaSis menampilkan teks ke layar.
 
 ## daftar isi
 
@@ -16,12 +16,12 @@ dokumentasi ini ngebahas gimana OaSis nampilin teks ke layar.
 
 ## overview
 
-**vga (video graphics array)** driver di OaSis handle output ke layar pake text mode.
+**vga (video graphics array)** driver di OaSis handle output ke layar menggunakan text mode.
 
 ### kenapa text mode?
 
 - simpler dari graphics mode
-- cukup buat command line interface
+- cukup untuk command line interface
 - standard di x86
 - mudah di-debug
 
@@ -59,7 +59,7 @@ vga buffer ada di memory address `0xB8000`.
 
 ### struktur
 
-setiap karakter di-representasiin sama 2 bytes:
+setiap karakter direpresentasikan sama 2 bytes:
 
 ```
 offset 0: character (ascii)
@@ -156,7 +156,7 @@ uint8_t yellow_blue = (1 << 4) | 14;  // 0x1E
 
 ## cursor
 
-vga punya hardware cursor yang bisa di-enable/disable dan dipindahin.
+vga memiliki hardware cursor yang bisa di-enable/disable dan dipindahkan.
 
 ### set cursor position
 
@@ -253,7 +253,7 @@ vga_puts("hello world\n");
 void vga_set_color(uint8_t fg, uint8_t bg);
 ```
 
-set warna buat operasi tulis berikutnya.
+set warna untuk operasi tulis berikutnya.
 
 **parameter:**
 - `fg`: foreground color (0-15)
@@ -271,7 +271,7 @@ vga_puts("warning!");
 void vga_set_cursor(uint8_t x, uint8_t y);
 ```
 
-pindahin cursor ke posisi tertentu.
+memindahkan cursor ke posisi tertentu.
 
 **parameter:**
 - `x`: kolom (0-79)
@@ -289,7 +289,7 @@ uint8_t vga_get_cursor_x(void);
 uint8_t vga_get_cursor_y(void);
 ```
 
-dapetin posisi cursor sekarang.
+mendapatkan posisi cursor sekarang.
 
 **return:** posisi x atau y
 
@@ -301,7 +301,7 @@ void vga_scroll(void);
 
 scroll layar ke atas 1 baris. baris paling bawah jadi kosong.
 
-**catatan:** biasanya dipanggil otomatis pas cursor nyampe baris paling bawah.
+**catatan:** biasanya dipanggil otomatis saat cursor sampai baris paling bawah.
 
 ## contoh penggunaan
 
@@ -377,7 +377,7 @@ void draw_status_bar(void) {
 
 - cek vga buffer address (harus 0xB8000)
 - cek inisialisasi vga
-- cek qemu parameter (harus pake vga mode)
+- cek qemu parameter (harus menggunakan vga mode)
 
 ### karakter aneh
 
@@ -385,7 +385,7 @@ void draw_status_bar(void) {
 - cek ascii code karakter
 - cek offset calculation
 
-### cursor gak muncul
+### cursor tidak muncul
 
 - cek cursor enable
 - cek cursor position (harus dalam range 0-79, 0-24)

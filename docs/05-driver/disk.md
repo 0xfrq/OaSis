@@ -1,6 +1,6 @@
 # disk driver
 
-dokumentasi ini ngebahas gimana OaSis baca dan tulis ke hard disk.
+dokumentasi ini membahas bagaimana OaSis baca dan tulis ke hard disk.
 
 ## daftar isi
 
@@ -26,14 +26,14 @@ dokumentasi ini ngebahas gimana OaSis baca dan tulis ke hard disk.
 
 ### limitation
 
-- belum support DMA (lebih lambat dari PIO)
-- belum support LBA48 (max 128 GB)
-- belum support SATA/AHCI
-- belum support caching
+- belum mendukung DMA (lebih lambat dari PIO)
+- belum mendukung LBA48 (max 128 GB)
+- belum mendukung SATA/AHCI
+- belum mendukung caching
 
 ## ata/ide
 
-**ATA (Advanced Technology Attachment)** adalah standard buat hard disk.
+**ATA (Advanced Technology Attachment)** adalah standard untuk hard disk.
 
 ### karakteristik
 
@@ -43,7 +43,7 @@ dokumentasi ini ngebahas gimana OaSis baca dan tulis ke hard disk.
 
 ### primary ata bus
 
-OaSis pake primary ATA bus:
+OaSis pakai primary ATA bus:
 
 ```
 I/O ports: 0x1F0 - 0x1F7
@@ -52,7 +52,7 @@ IRQ: 14
 
 ## port i/o
 
-ATA pake beberapa port I/O:
+ATA pakai beberapa port I/O:
 
 | port | read | write | deskripsi |
 |------|------|-------|-----------|
@@ -232,7 +232,7 @@ baca satu sector (512 bytes) dari disk.
 
 **parameter:**
 - `lba`: logical block address
-- `buffer`: buffer buat nyimpen data (minimal 512 bytes)
+- `buffer`: buffer untuk menyimpan data (minimal 512 bytes)
 
 **return:**
 - `0`: success
@@ -350,11 +350,11 @@ int ata_wait_drq(void) {
 
 ## troubleshooting
 
-### disk gak detected
+### disk tidak detected
 
 - cek ATA controller enabled di BIOS/QEMU
 - cek port 0x1F7 (harus bisa dibaca)
-- cek drive select byte (0xE0 buat drive 0)
+- cek drive select byte (0xE0 untuk drive 0)
 
 ### read/write error
 
@@ -366,7 +366,7 @@ int ata_wait_drq(void) {
 
 - cek flush cache setelah write
 - cek sector alignment
-- cek concurrent access (kalo ada)
+- cek concurrent access (kalau ada)
 
 ---
 

@@ -5,29 +5,29 @@ title: arsitektur
 
 # arsitektur
 
-oasis pake desain monolithic kernel -- semua layanan (filesystem, driver, syscall) jalan di kernel mode.
+oasis menggunakan desain monolithic kernel -- semua layanan (filesystem, driver, syscall) berjalan di kernel mode.
 
 ## layer
 
 ```
 +------------------------------------------+
-| shell (kernel_main loop) |
+| shell (kernel_main loop)                 |
 +------------------------------------------+
-| syscall layer (syscalls via int 0x80)|
+| syscall layer (syscalls via int 0x80)    |
 +------------------------------------------+
-| filesystem (oafs + fd layer) |
+| filesystem (oafs + fd layer)             |
 +------------------------------------------+
-| task scheduler + process isolation |
+| task scheduler + process isolation       |
 +------------------------------------------+
-| memory management (pmm + paging + heap) |
+| memory management (pmm + paging + heap)  |
 +------------------------------------------+
-| device drivers (keyboard, timer, ata) |
+| device drivers (keyboard, timer, ata)    |
 +------------------------------------------+
-| boot + gdt + idt + interrupts |
+| boot + gdt + idt + interrupts            |
 +------------------------------------------+
 ```
 
-## alur boot
+## urutan boot
 
 ```
 grub -> entry.asm -> kernel_main()

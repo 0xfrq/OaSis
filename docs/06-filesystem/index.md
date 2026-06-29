@@ -32,7 +32,7 @@ typedef struct {
 } superblock_t;
 ```
 
-magic number 0x0AF6 dicek pas boot. kalo gak cocok, filesystem di-format ulang.
+magic number 0x0AF6 dicek saat boot. kalau tidak cocok, filesystem di-format ulang.
 
 ## inode
 
@@ -64,7 +64,7 @@ typedef struct {
 
 sizeof = . satu block bisa muat 512/36 = entry.
 
-dengan multi-block support, directory bisa punya 12 block = 168 entries max.
+dengan multi-block support, directory bisa memiliki 12 block = 168 entries max.
 
 ## block bitmap
 
@@ -74,11 +74,11 @@ fungsi:
 - `bitmap_set(idx)` -> set bit
 - `bitmap_clear(idx)` -> clear bit
 - `bitmap_test(idx)` -> test bit
-- `rebuild_block_bitmap()` -> scan semua inode, set bit buat setiap block yang dipake
+- `rebuild_block_bitmap()` -> scan semua inode, set bit untuk setiap block yang digunakan
 
 ## key algorithm: get_block_ptr
 
-fungsi helper buat dapetin block number dari offset file tertentu.
+fungsi helper untuk mendapatkan block number dari offset file tertentu.
 
 ```c
 static int get_block_ptr(inode_t *in, uint32_t blk_idx) {
@@ -103,7 +103,7 @@ static int get_block_ptr(inode_t *in, uint32_t blk_idx) {
 
 ## key algorithm: set_block_ptr
 
-sama dengan get_block_ptr, tapi alloc block kalo belum ada.
+sama dengan get_block_ptr, tapi alloc block kalau belum ada.
 
 ```c
 static int set_block_ptr(inode_t *in, uint32_t blk_idx) {
@@ -177,8 +177,8 @@ int vfs_read(int fd, char *buf, uint32_t count) {
 ## vfs_write
 
 sama dengan read, tapi:
-1. alloc block kalo blk_idx >= blk yang sudah ada
-2. update inode->size kalo offset nulis > size
+1. alloc block kalau blk_idx >= blk yang sudah ada
+2. update inode->size kalau offset menulis > size
 3. save inode dan superblock setelah selesai
 
 ## vfs_unlink
@@ -186,15 +186,15 @@ sama dengan read, tapi:
 urutan:
 1. resolve path -> validasi file exists
 2. remove directory entry dulu (atomic operation)
-3. kalo berhasil, free semua blocks (direct + indirect)
+3. kalau berhasil, free semua blocks (direct + indirect)
 4. free inode
 5. save inode table + superblock
 
-kalo dir_remove_child gagal, gak ada yang ke-free (safe).
+kalau dir_remove_child gagal, tidak ada yang ke-free (safe).
 
 ## vfs_mkdir
 
-1. alloc inode + 1 block buat directory data
+1. alloc inode + 1 block untuk directory data
 2. set type = INODE_TYPE_DIR, parent_inode = parent
 3. add child entry ke parent directory
 4. save inode
@@ -222,12 +222,12 @@ baca semua block directory (up to 12 block), concatenate entries ke buffer.
 
 ### dir_write_entries
 
-nulis entries ke multiple block. alloc block baru kalo perlu.
+menulis entries ke multiple block. alloc block baru kalau perlu.
 
 ### dir_add_child
 
-1. read entries -> cek kalo name udah ada -> return -1
-2. kalo belum penuh, tambah entry
+1. read entries -> cek kalau name sudah ada -> return -1
+2. kalau belum penuh, tambah entry
 3. write entries
 
 ### dir_remove_child
@@ -238,7 +238,7 @@ nulis entries ke multiple block. alloc block baru kalo perlu.
 
 ## fd layer (src/kernel/fs/fd.c)
 
-fd table abstraction di atas vfs. setiap task punya fd_table sendiri.
+fd table abstraction di atas vfs. setiap task memiliki fd_table sendiri.
 
 ```c
 typedef struct {
@@ -274,7 +274,7 @@ call `vfs_open(path, vfs_flags)`, setup fd entry dengan vfs_fd yang di-return.
 
 ### kernel_fd_table
 
-fd_get_current_table() -> kalo current_task NULL atau current_task->fd_table NULL, return `&kernel_fd_table`. ini biaya kernel code tetap bisa akses fd meskipun gak ada task context.
+fd_get_current_table() -> kalau current_task NULL atau current_task->fd_table NULL, return `&kernel_fd_table`. ini biaya kernel code tetap bisa akses fd meskipun tidak ada task context.
 
 ### special device paths
 

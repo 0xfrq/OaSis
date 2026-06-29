@@ -1,6 +1,6 @@
 # keyboard driver
 
-dokumentasi ini ngebahas gimana OaSis baca input dari keyboard.
+dokumentasi ini membahas bagaimana OaSis baca input dari keyboard.
 
 ## daftar isi
 
@@ -21,7 +21,7 @@ dokumentasi ini ngebahas gimana OaSis baca input dari keyboard.
 ### kemampuan
 
 - baca scancode dari keyboard
-- convert scancode ke ASCII pake layout US QWERTY
+- convert scancode ke ASCII pakai layout US QWERTY
 - support modifier keys (**shift** kiri & kanan, **ctrl**)
 - support **shifted symbols** (`!@#$%^&*()_+{}:"<>?~|` dst)
 - support **arrow keys**, Home, End, PageUp/Down, Delete (via extended scancode 0xE0)
@@ -30,11 +30,11 @@ dokumentasi ini ngebahas gimana OaSis baca input dari keyboard.
 
 ### limitation
 
-- belum support USB keyboard
-- belum support function keys (F1-F12)
-- belum support Caps Lock
-- belum support keyboard LED
-- belum support Alt key
+- belum mendukung USB keyboard
+- belum mendukung function keys (F1-F12)
+- belum mendukung Caps Lock
+- belum mendukung keyboard LED
+- belum mendukung Alt key
 
 ## keyboard ps2
 
@@ -59,7 +59,7 @@ uint8_t scancode = inb(0x60);
 
 ## scancode
 
-**scancode** adalah kode yang dikirim keyboard pas tombol ditekan/dilepas.
+**scancode** adalah kode yang dikirim keyboard saat tombol ditekan/dilepas.
 
 ### make code vs break code
 
@@ -104,7 +104,7 @@ uint8_t scancode = inb(0x60);
 
 ### konversi ke ascii
 
-OaSis pake **dua keymap**: satu buat kondisi tanpa shift, satu lagi pas shift ditekan.
+OaSis pakai **dua keymap**: satu untuk kondisi tanpa shift, satu lagi saat shift ditekan.
 
 ```c
 /* keymap US (tanpa shift) */
@@ -138,18 +138,18 @@ static volatile uint8_t extended_key = 0;
 /* shift kiri: 0x2A press, 0xAA release */
 /* shift kanan: 0x36 press, 0xB6 release */
 /* ctrl: 0x1D press, 0x9D release */
-/* extended (arrow keys dll): prefix 0xE0 */
+/* extended (arrow keys dan lain-lain): prefix 0xE0 */
 ```
 
 ## buffer
 
-keyboard driver pake **circular buffer** buat nyimpen karakter yang belum dibaca.
+keyboard driver pakai **circular buffer** untuk menyimpan karakter yang belum dibaca.
 
 ### kenapa butuh buffer?
 
-- keyboard interrupt bisa terjadi kapan aja
+- keyboard interrupt bisa terjadi kapan saja
 - aplikasi mungkin belum siap baca
-- buffer nyimpen karakter sampe aplikasi baca
+- buffer menyimpan karakter sampai aplikasi baca
 
 ### struktur buffer
 
@@ -188,7 +188,7 @@ char keyboard_buffer_get(void) {
 
 ## interrupt handling
 
-keyboard pake **IRQ 1** (interrupt 33 setelah remapping).
+keyboard pakai **IRQ 1** (interrupt 33 setelah remapping).
 
 ### flow
 
@@ -249,8 +249,8 @@ void keyboard_init(void);
 
 inisialisasi keyboard driver. register interrupt handler.
 
-**yang dilakuin:**
-1. register keyboard_handler() buat IRQ 1
+**yang dilakukan:**
+1. register keyboard_handler() untuk IRQ 1
 2. enable IRQ 1 di PIC
 3. clear buffer
 
@@ -260,7 +260,7 @@ inisialisasi keyboard driver. register interrupt handler.
 char keyboard_getchar(void);
 ```
 
-baca satu karakter dari buffer. **blocking** (tunggu sampe ada karakter).
+baca satu karakter dari buffer. **blocking** (tunggu sampai ada karakter).
 
 **return:** karakter yang dibaca
 
@@ -296,10 +296,10 @@ if (keyboard_available()) {
 int keyboard_gets(char *buf, int max_len);
 ```
 
-baca string sampe newline atau max_len. **blocking**.
+baca string sampai newline atau max_len. **blocking**.
 
 **parameter:**
-- `buf`: buffer buat nyimpen string
+- `buf`: buffer untuk menyimpan string
 - `max_len`: maximum length (termasuk null terminator)
 
 **return:** jumlah karakter yang dibaca
@@ -379,7 +379,7 @@ void game_loop(void) {
 
 ## troubleshooting
 
-### keyboard gak response
+### keyboard tidak response
 
 - cek IRQ 1 enabled di PIC
 - cek keyboard_handler() registered di IDT

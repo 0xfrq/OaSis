@@ -1,6 +1,6 @@
 # operasi filesystem
 
-dokumentasi ini ngebahas operasi-operasi file di oafs.
+dokumentasi ini membahas operasi-operasi file di oafs.
 
 ## daftar isi
 
@@ -17,7 +17,7 @@ dokumentasi ini ngebahas operasi-operasi file di oafs.
 
 ## overview
 
-semua operasi file di OaSis lewat vfs layer. aplikasi gak perlu tau detail filesystem.
+semua operasi file di OaSis lewat vfs layer. aplikasi tidak perlu tahu detail filesystem.
 
 ### flow umum
 
@@ -30,7 +30,7 @@ vfs alloc open file descriptor
   ↓
 return fd ke aplikasi
   ↓
-aplikasi pake fd buat read/write
+aplikasi menggunakan fd untuk read/write
   ↓
 aplikasi call vfs_close(fd)
 ```
@@ -90,9 +90,9 @@ int resolve_path(const char *path, uint32_t *inode_out) {
 
 | flag | nilai | deskripsi |
 |------|-------|-----------|
-| `VFS_O_READ` | 0x01 | buka buat baca |
-| `VFS_O_WRITE` | 0x02 | buka buat tulis |
-| `VFS_O_CREATE` | 0x04 | bikin kalo belum ada |
+| `VFS_O_READ` | 0x01 | buka untuk baca |
+| `VFS_O_WRITE` | 0x02 | buka untuk tulis |
+| `VFS_O_CREATE` | 0x04 | membuat kalau belum ada |
 | `VFS_O_TRUNC` | 0x08 | truncate ke 0 length |
 | `VFS_O_APPEND` | 0x10 | tulis di ujung file |
 
