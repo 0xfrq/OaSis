@@ -209,11 +209,14 @@ static void str_lower(char *s) {
 /* parse integer desimal atau hex (prefix 0x), return 1 kalo sukses */
 static int parse_int(const char *s, uint32_t *out) {
     if (!s || !*s) return 0;
+    /* skip leading whitespace */
+    while (*s == ' ' || *s == '\t') s++;
+    if (!*s) return 0;
     if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
         uint32_t v = 0;
         s += 2;
         if (!*s) return 0;
-        while (*s) {
+        while (*s && *s != ' ' && *s != '\t') {
             char c = to_lower(*s);
             if (c >= '0' && c <= '9')      v = v * 16 + (uint32_t)(c - '0');
             else if (c >= 'a' && c <= 'f') v = v * 16 + (uint32_t)(c - 'a' + 10);
@@ -226,7 +229,7 @@ static int parse_int(const char *s, uint32_t *out) {
     int neg = 0;
     if (*s == '-') { neg = 1; s++; }
     if (!*s) return 0;
-    while (*s) {
+    while (*s && *s != ' ' && *s != '\t') {
         if (*s < '0' || *s > '9') return 0;
         v = v * 10 + (uint32_t)(*s - '0');
         s++;
@@ -265,10 +268,42 @@ static int find_label(const char *name) {
     return -1;
 }
 
+/* User-mode flag: when set, remap kernel libc symbols to usr_ variants */
+static int user_mode_asm = 0;
+
+/* Remap table: kernel symbol -> user symbol.
+ * When user_mode_asm is set, if find_extern is called with a kernel
+ * libc name (e.g. "_printf"), we look up the corresponding usr_ name
+ * (e.g. "_usr_printf") instead.  This lets occ-generated code that
+ * emits "call _printf" work correctly in Ring 3. */
+static const struct {
+    const char *kernel_name;
+    const char *user_name;
+} user_remap[] = {
+    { "_printf",   "_usr_printf"   },
+    { "_putchar",  "_usr_putchar"  },
+    { "_puts",     "_usr_puts"     },
+    { "_getchar",  "_usr_getchar"  },
+    { "_gets",     "_usr_gets"     },
+    { "_malloc",   "_usr_malloc"   },
+    { "_free",     "_usr_free"     },
+    { 0, 0 }
+};
+
 /* cari alamat extern symbol, return 0 kalo gak ketemu */
 static uint32_t find_extern(const char *name) {
+    /* In user mode, remap kernel libc names to usr_ variants */
+    const char *lookup = name;
+    if (user_mode_asm) {
+        for (int i = 0; user_remap[i].kernel_name; i++) {
+            if (streq(name, user_remap[i].kernel_name)) {
+                lookup = user_remap[i].user_name;
+                break;
+            }
+        }
+    }
     for (int i = 0; extern_syms[i].name; i++) {
-        if (streq(extern_syms[i].name, name))
+        if (streq(extern_syms[i].name, lookup))
             return (uint32_t)extern_syms[i].addr;
     }
     return 0;
@@ -1358,6 +1393,13 @@ int asm_assemble(const char *code, void **exec_addr) {
 
     *exec_addr = dest;
     return code_len;
+}
+
+int asm_assemble_user(const char *code, void **exec_addr) {
+    user_mode_asm = 1;
+    int result = asm_assemble(code, exec_addr);
+    user_mode_asm = 0;
+    return result;
 }
 
 /* baca satu baris dari keyboard, return panjang */

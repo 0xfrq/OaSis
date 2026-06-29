@@ -156,7 +156,7 @@ task_t *task_create_user(const char *name, void *code_start, uint32_t code_size)
 
 void run_user_test(const char *asm_code) {
     void *exec_addr = 0;
-    int result = asm_assemble(asm_code, &exec_addr);
+    int result = asm_assemble_user(asm_code, &exec_addr);
     if (result <= 0) {
         vga_print("user: assembling gagal\n");
         return;

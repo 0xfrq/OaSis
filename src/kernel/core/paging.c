@@ -169,13 +169,22 @@ pde_t *paging_create_user_dir(void) {
         /* Copy PTE entries */
         pte_t *old_pt = (pte_t *)(kernel_page_dir[i] & PAGE_MASK);
         pte_t *new_pt = (pte_t *)tmp_virt;
-        int is_kernel_page = (i == 0) || (i >= 0xC00 && i < 0xD00);
+        int is_higher_half = (i >= 0xC00 && i < 0xD00);
 
         for (int j = 0; j < PAGE_TABLE_SIZE; j++) {
             if (old_pt[j] & PTE_PRESENT) {
-                if (is_kernel_page) {
-                    /* Kernel pages: strip USER flag */
+                if (is_higher_half) {
+                    /* Higher-half kernel: strip USER flag */
                     new_pt[j] = old_pt[j] & ~PTE_USER;
+                } else if (i == 0) {
+                    /* Identity-mapped kernel (PDE 0, 0-4MB):
+                     * Mark as user-accessible so user code can call
+                     * usr_* library functions (which live in kernel
+                     * text but use int 0x80 for all privileged ops).
+                     * Keep writable so kernel data/BSS remains usable
+                     * during syscall handling (int 0x80 doesn't switch
+                     * page directories). */
+                    new_pt[j] = old_pt[j] | PTE_USER;
                 } else {
                     /* User pages: add USER flag */
                     new_pt[j] = old_pt[j] | PTE_USER;
@@ -185,8 +194,8 @@ pde_t *paging_create_user_dir(void) {
             }
         }
 
-        /* Set PDE: kernel pages tanpa USER, user pages dengan USER */
-        if (is_kernel_page) {
+        /* Set PDE flags */
+        if (is_higher_half) {
             user_pd[i] = pt_phys | PTE_PRESENT | PTE_WRITE;
         } else {
             user_pd[i] = pt_phys | PTE_PRESENT | PTE_WRITE | PTE_USER;
