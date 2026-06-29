@@ -53,11 +53,10 @@ tr:nth-child(even) td { background: var(--bg-soft); }
 /* ── Header ── */
 .header {
   position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
-  border-bottom: 1px solid var(--border); background: var(--bg);
+  background: var(--bg);
   display: flex; align-items: center; padding: 0 16px; z-index: 200;
 }
-.header h1 { font-size: 16px; font-weight: 700; color: var(--text); flex: 1; }
-.header h1 span { color: var(--green); }
+.header h1 { font-size: 16px; font-weight: 600; color: var(--text-2); flex: 1; }
 
 /* Hamburger */
 .hamburger {
@@ -179,7 +178,7 @@ blockquote {
   <button class="hamburger" id="menuBtn" aria-label="Toggle navigation">
     <span></span><span></span><span></span>
   </button>
-  <h1>Oasis<span>OS</span></h1>
+  <h1>OasisOS</h1>
 </div>
 
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
