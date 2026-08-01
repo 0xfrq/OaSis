@@ -218,7 +218,7 @@ file: `src/kernel/drivers/ata.c`
 
 ### port
 
-```
+```text
 0x1F0: data port (16-bit)
 0x1F2: sector count
 0x1F3: lba low

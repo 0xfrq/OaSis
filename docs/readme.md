@@ -46,7 +46,8 @@ Open the local URL printed by Jekyll. The site reads navigation from `_config.ym
 Keep documentation aligned with source code:
 
 - Use sentence-case headings and English terminology.
-- Add a language tag to every fenced code block.
+- Add a language tag to every fenced code block. Use `c`, `asm`, `bash`, or `text` when appropriate; diagrams and terminal output use `text`.
+- Keep code examples short and use the language that matches the actual source.
 - Use ASCII in kernel output examples because VGA text mode does not render Unicode reliably.
 - Mark features as Implemented, Partial, Experimental, or Planned.
 - Document QEMU-only assumptions and static configuration values.

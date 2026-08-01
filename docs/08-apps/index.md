@@ -49,7 +49,7 @@ assembler x86 32-bit lengkap ~banyak baris. menghasilkan machine code yang langs
 
 ### alur assembler
 
-```
+```text
 asm_assemble(code, &exec_addr):
 1. copy code ke input_buf[]
 2. proses baris per baris:

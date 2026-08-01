@@ -29,7 +29,7 @@ typedef struct task_t {
 `task_create(function_pointer)` allocates a stack (4 pages = 16KB), maps it as user pages, initializes the context (EIP = function address, EFLAGS = 0x202, CS = 0x08), and adds the task to the circular ready list.
 
 ### Stack Layout per Task
-```
+```text
 Stack base + 16KB
   [return address for first function]
   [... unused ...]

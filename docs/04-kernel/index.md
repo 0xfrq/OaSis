@@ -170,7 +170,7 @@ isr_common_stub:
 
 ### stack layout di isr_common_stub (ring 0 case)
 
-```
+```text
 [esp+0] = edi (pusha)
 [esp+4] = esi
 [esp+8] = ebp
@@ -543,7 +543,7 @@ sizeof = .
 
 #### splitting
 
-```
+```text
 block A (size 1000) -> malloc(32) -> needed = align_up(16+32) = 48
 block A di-split:
  [used A size=48] [free A2 size=952]
@@ -551,7 +551,7 @@ block A di-split:
 
 #### coalescing
 
-```
+```text
 [free A size 48] [free B size 952 adjacent di memory]
 -> setelah coalesce: [free C size 1000]
 ```

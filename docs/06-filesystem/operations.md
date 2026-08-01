@@ -21,7 +21,7 @@ semua operasi file di OaSis lewat vfs layer. aplikasi tidak perlu tahu detail fi
 
 ### flow umum
 
-```
+```text
 aplikasi call vfs_open("/path/to/file")
   ↓
 vfs resolve path (cari inode)
@@ -41,7 +41,7 @@ aplikasi call vfs_close(fd)
 
 ### contoh
 
-```
+```text
 /home/user/file.txt
 
 1. mulai dari root (inode 0)

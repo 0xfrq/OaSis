@@ -17,7 +17,7 @@ The PMM uses a simple **bitmap allocator**.
 - `pmm_free_page(phys)`: clears the corresponding bit, increments `free_pages`.
 
 ### Code Path
-```
+```text
 malloc() -> kmalloc() -> pmm_alloc_page() -> bitmap scan -> physical page
 ```
 
@@ -54,7 +54,7 @@ OaSis uses **4KB page tables** with a 2-level hierarchy.
 ## Kernel Heap (kmalloc)
 
 ### Block Structure
-```
+```text
 [heap_block_t header: 16 bytes] [payload: N bytes]
 ```
 

@@ -9,7 +9,7 @@ title: System Calls
 
 All system calls use `int 0x80` with arguments in registers:
 
-```
+```text
 eax = syscall number
 ebx = arg1
 ecx = arg2
@@ -18,7 +18,7 @@ Return value in eax (negative = error)
 ```
 
 ### From Ring 0 (kernel/assembler)
-```
+```asm
 mov eax, 9       ; SYSCALL_OPEN
 mov ebx, path    ; pointer to path string
 mov ecx, 0       ; O_RDONLY

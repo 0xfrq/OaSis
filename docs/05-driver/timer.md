@@ -44,7 +44,7 @@ PIT adalah chip yang bisa generate periodic interrupt.
 
 ### port I/O
 
-```
+```text
 0x40: channel 0 data
 0x41: channel 1 data
 0x42: channel 2 data
@@ -57,12 +57,12 @@ PIT adalah chip yang bisa generate periodic interrupt.
 
 untuk set frequency, kita hitung divider:
 
-```
+```text
 divider = base_frequency / desired_frequency
 ```
 
 **contoh:** 100 Hz (10 ms interval)
-```
+```text
 divider = 1193182 / 100 = 11932
 ```
 
@@ -91,7 +91,7 @@ timer menggunakan **IRQ 0** (interrupt 32 setelah remapping).
 
 ### flow
 
-```
+```text
 PIT generate interrupt setiap 10 ms
   ↓
 IRQ 0 triggered

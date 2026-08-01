@@ -45,7 +45,7 @@ dokumentasi ini membahas bagaimana OaSis baca dan tulis ke hard disk.
 
 OaSis pakai primary ATA bus:
 
-```
+```text
 I/O ports: 0x1F0 - 0x1F7
 IRQ: 14
 ```
@@ -67,7 +67,7 @@ ATA pakai beberapa port I/O:
 
 ### status register
 
-```
+```text
 bit 0: ERR (error occurred)
 bit 1: IDX (index mark)
 bit 2: CORR (corrected data)
@@ -80,7 +80,7 @@ bit 7: BSY (busy)
 
 ### command register
 
-```
+```text
 0x20: read sector (PIO)
 0x30: write sector (PIO)
 0xEC: identify drive
@@ -90,7 +90,7 @@ bit 7: BSY (busy)
 
 ### flow
 
-```
+```text
 set sector count
   ↓
 set LBA address
@@ -144,7 +144,7 @@ int ata_read_sector(uint32_t lba, void *buffer) {
 
 ### flow
 
-```
+```text
 set sector count
   ↓
 set LBA address

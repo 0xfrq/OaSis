@@ -11,7 +11,7 @@ oafs adalah inode-based filesystem kustom untuk oasis. semua kode di `src/kernel
 
 disk image (`disk.img`) 4mb dengan 8192 block @ .
 
-```
+```text
 block 0-127: reserved (boot sector dll)
 block 128: superblock
 block 129-128+N: inode table (N = ceil(1024 / (512/64)) = ceil(1024/8) = 128 block)
@@ -203,7 +203,7 @@ kalau dir_remove_child gagal, tidak ada yang ke-free (safe).
 
 parse path component by component.
 
-```
+```text
 path = "/home/user/file.txt"
 -> cur = 0 (root)
 -> part = "home" -> dir_find_child(0, "home") -> cur = home_inode

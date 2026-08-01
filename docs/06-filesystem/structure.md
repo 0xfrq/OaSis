@@ -19,7 +19,7 @@ dokumentasi ini membahas detail struktur oafs di disk.
 
 oafs divide disk jadi beberapa region:
 
-```
+```text
 ┌─────────────────────────────────────┐
 │  boot sector (512 bytes)            │  block 0
 ├─────────────────────────────────────┤
@@ -129,7 +129,7 @@ mulai dari `bitmap_start` (biasanya block 2)
 
 ### struktur
 
-```
+```text
 1 bit = 1 block
 bit 0 = block 0, bit 1 = block 1, dst
 
@@ -139,13 +139,13 @@ bit 0 = block 0, bit 1 = block 1, dst
 
 ### ukuran
 
-```
+```text
 bitmap_size = (total_blocks + 7) / 8 bytes
 bitmap_blocks = (bitmap_size + 511) / 512
 ```
 
 **contoh:** disk 10 MB = 20480 blocks
-```
+```text
 bitmap_size = (20480 + 7) / 8 = 2560 bytes
 bitmap_blocks = (2560 + 511) / 512 = 6 blocks
 ```
@@ -186,7 +186,7 @@ setelah block bitmap
 
 sama kayak block bitmap, tapi track inodes:
 
-```
+```text
 1 bit = 1 inode
 0 = free
 1 = used
@@ -194,7 +194,7 @@ sama kayak block bitmap, tapi track inodes:
 
 ### ukuran
 
-```
+```text
 bitmap_size = (total_inodes + 7) / 8 bytes
 bitmap_blocks = (bitmap_size + 511) / 512
 ```
@@ -267,7 +267,7 @@ setelah inode table sampai end of disk
 
 ### ukuran
 
-```
+```text
 data_blocks = total_blocks - (1 + 1 + bitmap_blocks + inode_table_blocks)
 ```
 
@@ -303,7 +303,7 @@ struct dirent {
 
 ### contoh directory
 
-```
+```text
 /home/user:
   entry 1: inode=10, name="."
   entry 2: inode=5,  name=".."
@@ -349,7 +349,7 @@ int dir_find_entry(int dir_inode, const char *name, struct dirent *entry) {
 
 ## contoh: create file
 
-```
+```text
 user: touch /home/test.txt
 
 1. resolve path "/home/test.txt"

@@ -29,7 +29,7 @@ The IDT has 256 entries, each 8 bytes:
 ## ISR Handler (`isr_common_stub`)
 
 ### Stack Layout (ring 0 -> handler)
-```
+```text
 [ESP+0]  = EDI (from PUSHA)
 [ESP+4]  = ESI
 [ESP+8]  = EBP

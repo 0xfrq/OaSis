@@ -31,7 +31,7 @@ dokumentasi ini membahas bagaimana OaSis komunikasi sama hardware lewat port I/O
 
 ### port i/o
 
-```
+```text
 cpu ←→ I/O port space (64 KB) ←→ device
 ```
 
@@ -43,7 +43,7 @@ out 0x60, al     ; tulis ke port 0x60
 
 ### memory mapped i/o (MMIO)
 
-```
+```text
 cpu ←→ memory space ←→ device
 ```
 

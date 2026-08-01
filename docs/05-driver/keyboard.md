@@ -45,7 +45,7 @@ keyboard PS/2 communicate lewat port I/O:
 
 ### status register
 
-```
+```text
 bit 0: output buffer full (data ready to read)
 bit 1: input buffer full
 bit 2-7: other flags
@@ -192,7 +192,7 @@ keyboard pakai **IRQ 1** (interrupt 33 setelah remapping).
 
 ### flow
 
-```
+```text
 user press key
   ↓
 keyboard controller generate IRQ 1

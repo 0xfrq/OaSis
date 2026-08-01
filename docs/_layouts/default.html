@@ -51,24 +51,48 @@ body {
 a { text-decoration: none; color: var(--green); }
 a:hover { text-decoration: underline; }
 code {
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  font-size: 12px; background: var(--bg-soft);
+  font-family: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, Monaco,
+    Consolas, "Liberation Mono", monospace;
+  font-size: 0.86em; background: var(--bg-soft);
   border: 1px solid var(--border); padding: 1px 5px;
   border-radius: 4px; color: var(--text-2);
 }
+.highlight, pre { position: relative; }
 pre {
-  background: var(--bg-code); color: #e2e8f0; padding: 16px;
+  background: var(--bg-code); color: #e2e8f0; padding: 42px 18px 18px;
   border-radius: var(--radius); overflow-x: auto; margin: 16px 0;
-  font-size: 13px; line-height: 1.55;
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.9rem; line-height: 1.65; letter-spacing: 0.01em;
+  font-family: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, Monaco,
+    Consolas, "Liberation Mono", monospace;
+  font-variant-ligatures: none; tab-size: 4; white-space: pre;
   border: 1px solid var(--border);
-  box-shadow: 0 3px 12px rgba(0,0,0,.06);
+  box-shadow: 0 3px 12px rgba(0,0,0,.12);
 }
 pre code {
   background: none !important; border: none !important;
   padding: 0 !important; color: inherit !important;
   font-family: inherit; font-size: inherit;
 }
+.code-language {
+  position: absolute; top: 0; left: 0; right: 0;
+  padding: 7px 12px; color: #94a3b8;
+  background: var(--bg-code-bar); border-bottom: 1px solid #374151;
+  font: 600 0.68rem/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  user-select: none;
+}
+.highlight .c, .highlight .ch, .highlight .cm, .highlight .c1,
+.highlight .cs { color: #94a3b8; }
+.highlight .k, .highlight .kd, .highlight .kn, .highlight .kp,
+.highlight .kr { color: #f472b6; }
+.highlight .s, .highlight .sa, .highlight .sb, .highlight .sc,
+.highlight .dl, .highlight .sd, .highlight .s2 { color: #86efac; }
+.highlight .m, .highlight .mb, .highlight .mf, .highlight .mh,
+.highlight .mi, .highlight .mo { color: #93c5fd; }
+.highlight .nf, .highlight .fm, .highlight .nc { color: #fcd34d; }
+.highlight .o, .highlight .ow { color: #c4b5fd; }
+.highlight .na, .highlight .nb, .highlight .nt { color: #67e8f9; }
+.highlight .err { color: #fca5a5; background: transparent; }
 table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; white-space: nowrap; }
 th { background: var(--green); color: #fff; font-weight: 600; }
@@ -198,7 +222,8 @@ blockquote {
   h1 { font-size: 22px; }
   h2 { font-size: 17px; }
   h3 { font-size: 15px; }
-  pre { font-size: 12px; padding: 12px; }
+  pre { font-size: 0.78rem; padding: 38px 12px 12px; line-height: 1.6; }
+  .code-language { padding: 6px 10px; }
   table { font-size: 12px; }
 }
 </style>
@@ -278,6 +303,28 @@ document.addEventListener('DOMContentLoaded', function() {
   var links = sidebar.querySelectorAll('a');
   links.forEach(function(a) {
     if (a.href === window.location.href) a.classList.add('active');
+  });
+
+  // Add a readable language label to every rendered code block.
+  var languageNames = {
+    asm: 'Assembly', nasm: 'Assembly', bash: 'Shell', sh: 'Shell',
+    c: 'C', cpp: 'C++', yaml: 'YAML', json: 'JSON',
+    text: 'Plain text', plaintext: 'Plain text', console: 'Console'
+  };
+  document.querySelectorAll('main pre').forEach(function(pre) {
+    var code = pre.querySelector('code');
+    var source = code || pre;
+    var match = (source.className || '').match(/language-([\w-]+)/i);
+    if (!match) {
+      var wrapper = pre.closest('.highlighter-rouge');
+      match = wrapper && (wrapper.className || '').match(/language-([\w-]+)/i);
+    }
+    var language = match ? match[1].toLowerCase() : 'text';
+    var label = document.createElement('span');
+    label.className = 'code-language';
+    label.setAttribute('aria-label', 'Code language: ' + (languageNames[language] || language));
+    label.textContent = languageNames[language] || language;
+    pre.insertBefore(label, pre.firstChild);
   });
 
   // Build Table of Contents
