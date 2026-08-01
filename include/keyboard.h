@@ -24,6 +24,7 @@
 
 void keyboard_init(void);
 void keyboard_interrupt_handler(void);
+int keyboard_available(void);
 char keyboard_getchar(void);
 uint8_t keyboard_getkey(void);
 void keyboard_flush(void);  /* reset buffer keyboard */

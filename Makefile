@@ -18,12 +18,18 @@ SOURCES_CORE = src/kernel/core/kernel.c \
                src/kernel/core/vga.c \
                src/kernel/core/gdt.c
 
-SOURCES_DRIVERS = src/kernel/drivers/ata.c \
+SOURCES_DRIVERS = src/kernel/drivers/arp.c \
+                  src/kernel/drivers/ata.c \
                   src/kernel/drivers/block.c \
+                  src/kernel/drivers/ethernet.c \
+                  src/kernel/drivers/icmp.c \
                   src/kernel/drivers/idt.c \
                   src/kernel/drivers/io.c \
+                  src/kernel/drivers/ip.c \
                   src/kernel/drivers/keyboard.c \
+                  src/kernel/drivers/pci.c \
                   src/kernel/drivers/pic.c \
+                  src/kernel/drivers/rtl8139.c \
                   src/kernel/drivers/timer.c
 
 SOURCES_FS = src/kernel/fs/fd.c \
@@ -79,7 +85,7 @@ iso: kernel.bin
 
 # Jalankan di QEMU (langsung boot kernel, gak pake ISO)
 run: kernel.bin
-	qemu-system-i386 -kernel kernel.bin -drive id=disk0,file=disk.img,format=raw,if=none -device ide-hd,drive=disk0,bus=ide.0 -m 512M
+	qemu-system-i386 -kernel kernel.bin -drive id=disk0,file=disk.img,format=raw,if=none -device ide-hd,drive=disk0,bus=ide.0 -nic user,model=rtl8139 -m 512M
 
 # Bersihin semua file hasil build
 clean:

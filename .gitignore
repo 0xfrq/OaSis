@@ -1,10 +1,15 @@
 # build output
 kernel.bin
 oasis.iso
-*.o
 
+*.o
+.agents/
+.claude/
 # disk image (too big for repo)
 disk.img
 
 # iso staging
 iso/boot/kernel
+
+# local QEMU diagnostics
+qemu_network.log

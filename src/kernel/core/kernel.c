@@ -7,6 +7,12 @@
 #include "idt.h"
 #include "pic.h"
 #include "timer.h"
+#include "pci.h"
+#include "rtl8139.h"
+#include "ethernet.h"
+#include "arp.h"
+#include "ip.h"
+#include "icmp.h"
 #include "memory.h"
 #include "paging.h"
 #include "pmm.h"
@@ -291,6 +297,32 @@ void kernel_main(void) {
 
     vga_print("\n[+] Memory system initialized\n");
 
+    pci_init();
+
+    /* Detect and initialize RTL8139 NIC */
+    {
+        int nic_idx = pci_find_device(0x10EC, 0x8139);
+        if (nic_idx < 0)
+            nic_idx = pci_find_class(0x02, 0x00);
+        if (nic_idx >= 0) {
+            pci_device_t *nic = pci_get_device(nic_idx);
+            uint16_t io_base = (uint16_t)(nic->bar[0] & 0xFFFC);
+            if (io_base != 0) {
+                pci_enable_bus_master(nic->bus, nic->dev, nic->func);
+                rtl8139_init(io_base, nic->irq);
+            } else {
+                vga_print("[-] NIC BAR0 is 0 (MMIO?)\n");
+            }
+        } else {
+            vga_print("[-] No ethernet controller found\n");
+        }
+    }
+
+    /* Init Ethernet + ARP + IP layers */
+    arp_init();
+    eth_init();
+    ip_init();
+
     task_init();
     fd_init();
 
@@ -334,6 +366,13 @@ void kernel_main(void) {
     }
 
     while (1) {
+        eth_dispatch(); /* proses paket network masuk */
+
+        if (!keyboard_available()) {
+            asm volatile("hlt"); /* Hemat CPU kalau gak ada input keyboard, tapi tetep bangun pas interrupt */
+            continue;
+        }
+
         char c = keyboard_getchar();
 
         if(c=='\n') {
@@ -374,6 +413,10 @@ void kernel_main(void) {
                 vga_print("  lex <p>          - tokenisasi C\n");
                 vga_print("  parse <p>        - parse C ke AST\n");
                 vga_print("  occ <p>          - compile C & run\n");
+                vga_print("  pci               - scan PCI bus\n");
+                vga_print("  nicinfo           - info network card\n");
+                vga_print("  arp               - ARP cache\n");
+                vga_print("  ping <ip>         - test ping 4x\n");
                 vga_print("  uptime / meminfo - info sistem\n");
             } else if (strcmp(input, "asm") == 0) {
                 asm_run();
@@ -466,6 +509,71 @@ void kernel_main(void) {
                 vga_print("=== Usage: eax=num, ebx=arg1, ecx=arg2, edx=arg3 ===\n");
             } else if (strcmp(input, "clear") == 0) {
                 vga_clear();
+            } else if (strcmp(input, "pci") == 0) {
+                pci_init();
+            } else if (strcmp(input, "nicinfo") == 0) {
+                rtl8139_print_status();
+            } else if (strcmp(input, "arp") == 0) {
+                arp_print_cache();
+            } else if (starts_with(input, "ping ")) {
+                char *arg = input + 5;
+                trim_leading_spaces(&arg);
+                /* Parse dotted IP: "10.0.2.2" */
+                if (*arg) {
+                    uint8_t ip[4];
+                    int p = 0, ip_ok = 1;
+                    for (int octet = 0; octet < 4; octet++) {
+                        int val = 0;
+                        while (arg[p] >= '0' && arg[p] <= '9') {
+                            val = val * 10 + (arg[p] - '0');
+                            p++;
+                        }
+                        if (val > 255) { ip_ok = 0; break; }
+                        ip[octet] = (uint8_t)val;
+                        if (octet < 3 && arg[p++] != '.') { ip_ok = 0; break; }
+                    }
+                    if (ip_ok && arg[p] == 0) {
+                        /* Build ICMP echo request */
+                        for (int seq = 0; seq < 4; seq++) {
+                            uint8_t echo[64];
+                            echo[0] = 8; echo[1] = 0;  /* type=8, code=0 */
+                            echo[2] = 0; echo[3] = 0;  /* checksum placeholder */
+                            echo[4] = 0; echo[5] = 1;  /* id high/low (1) */
+                            echo[6] = 0; echo[7] = (uint8_t)(seq + 1);  /* seq in network byte order */
+                            /* payload (56 bytes of data) */
+                            for (int j = 8; j < 64; j++)
+                                echo[j] = (uint8_t)(j - 8 + seq);
+                            /* compute checksum */
+                            uint32_t csum = 0;
+                            for (int j = 0; j < 64; j += 2) {
+                                uint16_t w = ((uint16_t)echo[j] << 8) | echo[j+1];
+                                csum += w;
+                            }
+                            while (csum >> 16) csum = (csum & 0xFFFF) + (csum >> 16);
+                            uint16_t cs = (uint16_t)(~csum & 0xFFFF);
+                            echo[2] = (cs >> 8) & 0xFF;
+                            echo[3] = cs & 0xFF;
+
+                            vga_print("PING ");
+                            vga_print(arg);
+                            vga_print(" (ICMP ECHO) 64 bytes\n");
+
+                            if (ip_send(ip, IP_PROTO_ICMP, echo, 64) < 0) {
+                                vga_print("ping: network error\n");
+                                break;
+                            }
+
+                            /* Wait for reply */
+                            uint32_t start = timer_get_ticks();
+                            while ((timer_get_ticks() - start) < 50) { /* wait 500ms between pings */
+                                eth_dispatch();
+                            }
+                        }
+                        arp_print_cache();
+                    } else {
+                        vga_print("ping: invalid IP\n");
+                    }
+                }
             } else if (strcmp(input, "dmesg") == 0) {
                 log_dump();
             } else if (strcmp(input, "uptime") == 0) {

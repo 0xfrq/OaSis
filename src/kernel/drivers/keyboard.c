@@ -159,6 +159,10 @@ void keyboard_flush(void) {
 }
 
 /* ambil satu karakter dari buffer keyboard (hanya printable chars) */
+int keyboard_available(void) {
+    return (read_pos != write_pos);
+}
+
 char keyboard_getchar(void) {
     while (1) {
         while (read_pos == write_pos) {
