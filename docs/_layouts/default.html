@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ page.title | default: "OaSis OS" }} — OaSis Docs</title>
+<title>{{ page.title | default: site.title | default: "OaSis OS Documentation" }} | OaSis Docs</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -13,6 +13,36 @@
   --border: #e5e7eb; --bg: #ffffff; --bg-soft: #f9fafb;
   --bg-code: #1a1b2e; --bg-code-bar: #252636;
   --sidebar: 260px; --toc: 200px; --header-h: 52px; --radius: 8px;
+  --focus: #2563eb;
+}
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #e5e7eb; --text-2: #d1d5db; --text-3: #9ca3af;
+    --text-4: #6b7280; --border: #374151; --bg: #111827;
+    --bg-soft: #1f2937; --green-light: #064e3b; --green-border: #047857;
+    --bg-code: #030712;
+  }
+}
+.skip-link {
+  position: fixed; left: 12px; top: 8px; z-index: 300;
+  transform: translateY(-160%); padding: 8px 12px;
+  color: #fff; background: var(--green); border-radius: 6px;
+}
+.skip-link:focus { transform: translateY(0); }
+.page-meta {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 20px;
+  color: var(--text-3); font-size: 12px;
+}
+.page-meta span { padding: 3px 8px; border: 1px solid var(--border); border-radius: 999px; }
+.site-footer {
+  margin: 40px 0 0; padding: 20px 0 8px;
+  border-top: 1px solid var(--border); color: var(--text-3); font-size: 12px;
+}
+.site-footer a { margin-right: 14px; }
+.page-nav {
+  display: flex; justify-content: space-between; gap: 16px;
+  margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);
 }
 body {
   font-family: 'Inter', -apple-system, sans-serif; color: var(--text);
@@ -56,7 +86,8 @@ tr:nth-child(even) td { background: var(--bg-soft); }
   background: var(--bg);
   display: flex; align-items: center; padding: 0 16px; z-index: 200;
 }
-.header h1 { font-size: 16px; font-weight: 600; color: var(--text-2); flex: 1; }
+.header > a { font-size: 16px; font-weight: 700; color: var(--text-2); }
+.header-context { margin-left: 12px; color: var(--text-3); font-size: 13px; }
 
 /* Hamburger */
 .hamburger {
@@ -173,13 +204,15 @@ blockquote {
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to content</a>
 
-<div class="header">
-  <button class="hamburger" id="menuBtn" aria-label="Toggle navigation">
+<header class="header">
+  <button class="hamburger" id="menuBtn" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidebar">
     <span></span><span></span><span></span>
   </button>
-  <h1>OasisOS</h1>
-</div>
+  <a href="{{ '/' | relative_url }}" aria-label="OaSis documentation home">OaSis OS</a>
+  <span class="header-context">{{ page.title | default: site.title }}</span>
+</header>
 
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -194,8 +227,19 @@ blockquote {
   {% endfor %}
 </div>
 
-<main>
+<main id="main-content" tabindex="-1">
+  {% if page.content_type or page.audience %}
+  <div class="page-meta" aria-label="Page information">
+    {% if page.content_type %}<span>{{ page.content_type }}</span>{% endif %}
+    {% if page.audience %}<span>{{ page.audience }}</span>{% endif %}
+  </div>
+  {% endif %}
   {{ content }}
+  <footer class="site-footer">
+    <a href="https://github.com/0xfrq/OaSis">Source on GitHub</a>
+    <a href="{{ '/' | relative_url }}">Documentation home</a>
+    <span>OaSis OS documentation</span>
+  </footer>
 </main>
 
 <div class="toc-right" id="toc">
@@ -212,10 +256,12 @@ document.addEventListener('DOMContentLoaded', function() {
   var menuBtn = document.getElementById('menuBtn');
 
   function toggleMenu() {
-    sidebar.classList.toggle('open');
-    overlay.classList.toggle('open');
-    menuBtn.classList.toggle('open');
-    document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+    var open = !sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', open);
+    overlay.classList.toggle('open', open);
+    menuBtn.classList.toggle('open', open);
+    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    document.body.style.overflow = open ? 'hidden' : '';
   }
 
   menuBtn.addEventListener('click', toggleMenu);

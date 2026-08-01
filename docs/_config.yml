@@ -1,5 +1,5 @@
 title: "OaSis OS Documentation"
-description: "OaSis — x86 32-bit operating system from scratch"
+description: "Build and study an educational 32-bit x86 operating system."
 baseurl: ""
 url: "https://oasis.fariqdoing.tech"
 markdown: kramdown
@@ -9,23 +9,29 @@ permalink: pretty
 nav:
   - title: Overview
     url: /
-  - title: Pendahuluan
+  - title: Introduction
     url: /01-pendahuluan/
-  - title: Arsitektur
+  - title: Architecture
     url: /02-arsitektur/
-  - title: Booting
+  - title: Boot sequence
     url: /03-booting/
   - title: Kernel
     url: /04-kernel/
-  - title: Driver
+  - title: Drivers
     url: /05-driver/
+  - title: Networking
+    url: /05-driver/networking/
   - title: Filesystem
     url: /06-filesystem/
   - title: Shell
     url: /07-shell/
-  - title: Aplikasi
+  - title: Applications
     url: /08-apps/
   - title: Build
     url: /09-build/
+  - title: Testing
+    url: /09-build/testing/
+  - title: GUI roadmap
+    url: /11-gui/
   - title: Changelog
     url: /10-changelog/

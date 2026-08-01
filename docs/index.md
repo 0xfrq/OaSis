@@ -1,84 +1,80 @@
 ---
 layout: default
-title: overview
+title: OaSis OS documentation
+description: Learn how OaSis boots, manages memory, runs user programs, and connects to QEMU networking.
+content_type: landing
+audience: contributors and operating-system learners
+goal: Build and test OaSis, then navigate its kernel subsystems.
 ---
-# oasis os
 
-x86 32-bit operating system built from scratch on i386 architecture.
+# OaSis OS documentation
 
-This project includes C, assembly, and header files covering booting, protected mode, paging, multitasking, filesystem, syscalls, a C compiler, an assembler, and user mode execution.
+This site explains how OaSis boots, manages hardware, runs user programs, stores files, and communicates through a QEMU RTL8139 network device. Start with the build guide if you want to run the system, or use the architecture and driver pages to study the implementation.
 
-## component status
+## Start here
 
-| component | status | files |
-|-----------|--------|-------|
-| boot + gdt + idt | done | entry.asm, gdt.c, idt.c |
-| drivers (vga, keyboard, timer, ata, pic) | done | vga.c, keyboard.c, timer.c, ata.c, pic.c, io.c |
-| paging + pmm + heap | done | paging.c, pmm.c, heap.c |
-| process isolation (per-task cr3) | done | paging.c, task_user.c |
-| oafs filesystem (indirect + multi-block) | done | vfs.c, fd.c |
-| syscall layer (ring 0 + ring 3) | done | syscall.c, interrupt.asm |
-| task scheduler (round-robin, cr3 switching) | done | task.c |
-| kernel heap (free-list, splitting, coalescing) | done | heap.c |
-| occ compiler (int, for, if, while, params, array) | done | lexer.c, parser.c, codegen.c |
-| built-in assembler (x86 32-bit, times, ext syms) | done | asm.c |
-| user mode (ring 3, iret redirect, exit) | done | task_user.c, interrupt.asm |
-| klibc (printf, scanf, etc for kernel mode) | done | klibc.c |
-| usrlib (printf, malloc via syscall) | done | usrlib.c |
-| logging (circular buffer, dmesg, auto-exception log) | done | log.c |
-| shell + utilities (ls, cd, cat, write, echo, hexdump) | done | kernel.c |
-| text editor (nano-like) | done | editor.c |
-| boot screen (oasis os in center, loading dots) | done | kernel.c |
+- [Build and test](09-build/): install tools, build the kernel, run QEMU, and verify networking.
+- [Architecture](02-arsitektur/): follow the boot sequence and runtime data paths.
+- [Networking](05-driver/networking/): understand PCI, RTL8139, Ethernet, ARP, IPv4, and ICMP.
+- [Shell commands](07-shell/): use the filesystem, compiler, diagnostics, and network commands.
+- [GUI roadmap](11-gui/): see what is planned beyond the current VGA text console.
 
-## build
+## Implemented subsystems
 
-```
-sudo apt install gcc nasm grub2-common xorriso qemu-system-x86
-make   # kernel.bin + oasis.iso
-make run   # qemu-system-i386 -kernel kernel.bin
-```
+| Subsystem | Status | Main source |
+| --- | --- | --- |
+| Boot and protection | Implemented | `src/boot/entry.asm`, `gdt.c`, `idt.c` |
+| Memory | Implemented | `memory.c`, `pmm.c`, `paging.c`, `heap.c` |
+| Tasks and user mode | Implemented | `task.c`, `task_user.c`, `syscall.c` |
+| OAFS filesystem | Implemented | `vfs.c`, `fd.c`, `block.c` |
+| Shell and applications | Implemented | `kernel.c`, `editor.c`, `asm.c` |
+| `occ` compiler | Implemented subset | `lexer.c`, `parser.c`, `codegen.c` |
+| PCI and RTL8139 | Implemented for QEMU | `pci.c`, `rtl8139.c` |
+| Ethernet and ARP | Implemented | `ethernet.c`, `arp.c` |
+| IPv4 and ICMP | Implemented subset | `ip.c`, `icmp.c` |
+| Host protocol tests | Implemented | `test_network.c` |
+| GUI | Planned | No framebuffer or compositor exists yet |
 
-## directory structure
+## Network quickstart
 
-```
-src/
- boot/   entry.asm (entry point, 64kb stack), linker.ld
- kernel/
-   core/    kernel.c (shell), gdt.c, paging.c, pmm.c, vga.c, memory.c (e820)
-   drivers/ ata.c (pio), block.c (cache), idt.c (interrupt handler), io.c (port io)
-            keyboard.c (ps/2), pic.c, timer.c (pit)
-   fs/      fd.c (file descriptor), vfs.c (oafs inode-based)
-   lib/     string.c, lexer.c, parser.c, codegen.c (occ compiler)
-            klibc.c (kernel libc), heap.c (kmalloc), log.c, usrlib.c (user lib)
-   syscall/ syscall.c (dispatcher), interrupt.asm (irq + syscall handler)
-   tasks/   task.c (scheduler, tcb), task_user.c (ring 3 task creation)
-   apps/    editor.c (text editor), asm.c (built-in assembler)
-include/ kernel headers
-docs/    documentation
-Makefile
-iso/     grub config + kernel.bin for iso image
+Build and run from the repository root:
+
+```bash
+make clean
+make
+make run
 ```
 
-## memory layout
+Then run these commands in the OaSis shell:
 
-```
-0x00000000 - 0x003FFFFF   identity map (kernel binary, bss, stack, page tables)
-0x00400000 - 0x007FFFFF   reserved (kernel mapping extension)
-0x00800000 - 0x00EFFFFF   user code space
-0x00F00000 - 0x00FFFFFF   user stack (16kb per task)
-0x01000000 - 0x01FFFFFF   user heap (brk, up to 16mb)
-0x02000000 - 0x02FFFFFF   kernel heap (kmalloc arena, 16mb)
-0x40000000                CODE_VIRT (assembler output, multi-page)
-0xC0000000-0xC0400000     higher-half kernel mapping
+```text
+pci
+nicinfo
+arp
+ping 10.0.2.2
+arp
 ```
 
-## gdt layout
+The default QEMU guest address is `10.0.2.15`. The network stack uses a static configuration from `include/netcfg.h`, sends Ethernet frames through the RTL8139 driver, and polls incoming frames from the shell loop.
 
-| selector | segment | ring | base | limit | access |
-|----------|---------|------|------|-------|--------|
-| 0x00 | null | - | 0 | 0 | 0 |
-| 0x08 | kernel code | 0 | 0 | 4gb | 0x9A (present, ring0, code, exec/read) |
-| 0x10 | kernel data | 0 | 0 | 4gb | 0x92 (present, ring0, data, read/write) |
-| 0x18 | user code | 3 | 0 | 4gb | 0xFA (present, ring3, code, exec/read) |
-| 0x20 | user data | 3 | 0 | 4gb | 0xF2 (present, ring3, data, read/write) |
-| 0x28 | tss | 0 | &tss | sizeof(tss) | 0x89 (present, ring0, available tss) |
+## Current scope
+
+OaSis currently supports Ethernet, ARP, IPv4 headers, ICMP echo requests and replies, and a kernel-level `ping` command. It does not yet provide DHCP, routing, TCP, UDP, DNS resolution, sockets, network syscalls, or interrupt-driven NIC reception.
+
+The display is also text-only. The next GUI milestones are framebuffer discovery, bitmap font rendering, mouse input, a compositor, a graphical terminal, and user-space GUI APIs.
+
+## Documentation map
+
+- [Introduction](01-pendahuluan/)
+- [Architecture](02-arsitektur/)
+- [Boot sequence](03-booting/)
+- [Kernel](04-kernel/)
+- [Drivers](05-driver/)
+- [Networking internals](05-driver/networking/)
+- [Filesystem](06-filesystem/)
+- [Shell](07-shell/)
+- [Applications](08-apps/)
+- [Build](09-build/)
+- [Testing](09-build/testing/)
+- [Changelog](10-changelog/)
+- [GUI roadmap](11-gui/)

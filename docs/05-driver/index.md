@@ -3,7 +3,31 @@ layout: default
 title: driver
 ---
 
-# driver
+# Drivers
+
+This section documents the hardware boundary of OaSis. The [networking internals](networking/) page covers the complete PCI-to-ICMP path; the pages below cover the earlier device drivers.
+
+## Driver catalog
+
+| Driver | Status | Source |
+| --- | --- | --- |
+| PCI configuration space | Implemented for bus 0 | `src/kernel/drivers/pci.c` |
+| RTL8139 Ethernet | Implemented for QEMU, polling mode | `src/kernel/drivers/rtl8139.c` |
+| Ethernet, ARP, IPv4, ICMP | Implemented subset | `src/kernel/drivers/ethernet.c`, `arp.c`, `ip.c`, `icmp.c` |
+| PS/2 keyboard | Implemented | `src/kernel/drivers/keyboard.c` |
+| PIT timer | Implemented | `src/kernel/drivers/timer.c` |
+| VGA text mode | Implemented | `src/kernel/core/vga.c` |
+| ATA PIO and block cache | Implemented | `src/kernel/drivers/ata.c`, `block.c` |
+| PIC and port I/O | Implemented | `src/kernel/drivers/pic.c`, `io.c` |
+
+## Networking
+
+Read [Networking internals](networking/) for PCI discovery, RTL8139 DMA, Ethernet frames, ARP resolution, IPv4 validation, ICMP echo, QEMU setup, and troubleshooting.
+
+## Legacy driver details
+
+The sections below retain the detailed keyboard, timer, VGA, ATA, block-cache, PIC, and port-I/O notes from the original driver guide.
+
 
 ## keyboard (ps/2)
 

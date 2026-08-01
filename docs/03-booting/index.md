@@ -1,157 +1,104 @@
 ---
 layout: default
-title: booting
+title: Boot sequence
+description: Follow the Multiboot entry point and kernel initialization sequence.
+content_type: reference
+audience: operating-system learners and kernel contributors
 ---
 
-# booting
+# Boot sequence
 
-## multiboot header
+This page follows OaSis from GRUB's Multiboot handoff to the shell prompt. The source of truth is `src/boot/entry.asm` and `src/kernel/core/kernel.c`.
 
-Kernel dimulai dengan header multiboot di section `.multiboot`:
+## Multiboot entry
+
+The kernel includes a Multiboot header in the `.multiboot` section:
 
 ```asm
 SECTION .multiboot
- align 4
- dd 0x1BADB002 ; magic number
- dd 0x00 ; flags (none, aout kludge tidak dipakai)
- dd -(0x1BADB002) ; checksum: magic + flags + checksum = 0
+align 4
+dd 0x1BADB002
+dd 0x00
+dd -(0x1BADB002)
 ```
 
-GRUB membaca header ini dan me-load kernel.bin di physical address 1MB (0x100000). Kernel binary adalah ELF32, GRUB parse ELF header dan load segments sesuai.
+GRUB loads the ELF32 kernel at physical address `0x00100000`. The linker script places the kernel at 1 MiB and exposes `_start` as the entry point.
 
-## entry point (src/boot/entry.asm)
+## Assembly entry point
 
-Setelah GRUB selesai, CPU mulai eksekusi di `_start`:
+`src/boot/entry.asm` disables interrupts, installs the 64 KiB bootstrap stack, and calls `kernel_main()`:
 
 ```asm
-SECTION .text
-GLOBAL _start
-EXTERN kernel_main
-
 _start:
- cli ; matikan interrupt dulu
- mov esp, stack_top ; set stack pointer ke stack 64KB
- call kernel_main ; panggil kernel C
+    cli
+    mov esp, stack_top
+    call kernel_main
 
 .hang:
- hlt ; kalau kernel_main return, halt
- jmp .hang
-
-section .bss
-align 16
-resb 65536 ; 64KB stack
-stack_top:
+    hlt
+    jmp .hang
 ```
 
-`stack_top` adalah symbol yang di-expose ke C via `extern uint32_t stack_top;`, dipakai oleh `gdt.c` untuk set ESP0 di TSS.
+If `kernel_main()` returns, the CPU remains halted in the loop.
 
-## kernel_main initialization sequence
+## Kernel initialization sequence
 
-### urutan inisialisasi
+The current order is:
 
+```text
+ 1. boot_screen()
+ 2. gdt_init()
+ 3. idt_init()
+ 4. pic_init()
+ 5. timer_init(100)
+ 6. keyboard_init()
+ 7. enable interrupts for normal timer and keyboard operation
+ 8. memory_init() and E820 discovery
+ 9. pmm_init()
+10. paging_init() and paging_enable()
+11. pci_init()
+12. locate the RTL8139 by vendor/device or network class
+13. validate BAR0, enable PCI bus mastering, and initialize RTL8139
+14. arp_init()
+15. eth_init()
+16. ip_init()
+17. task_init()
+18. fd_init()
+19. block_init()
+20. vfs_init()
+21. syscall_init()
+22. create idle, worker, and block-test tasks
+23. enter the shell loop
 ```
- 1. vga_clear() -- bersihkan layar 80x25
- 2. boot_screen() -- tampilkan "oasis os" + border + "booting..."
- 3. gdt_init() -- setup 6 GDT entries (ring0 + ring3 + TSS)
- 4. idt_init() -- 256 IDT entries (32 ISR + 16 IRQ + int 0x80)
- 5. pic_init() -- remap IRQ ke interrupt 32-47
- 6. timer_init(100) -- PIT channel 0 di 100Hz
- 7. keyboard_init() -- PS/2 keyboard, flush buffer
- 8. boot_progress() -- update loading dots
- 9. sti -- enable interrupts
-10. memory_init() -- E820 memory detection
-11. pmm_init() -- physical memory manager (bitmap)
-12. paging_init() -- page tables + identity map + higher-half
-13. paging_enable() -- set CR0.PG = 1
-14. boot_progress()
-15. task_init() -- init task array + scheduler
-16. fd_init() -- file descriptor layer
-17. block_init() -- block device cache
-18. vfs_init() -- OAFS filesystem (format kalau belum ada)
-19. syscall_init() -- set IDT entry 128 (0x80) dengan DPL=3
-20. task_create() x3 -- idle, worker, block_test
-21. boot_progress() -- dots selesai
-22. vga_clear() -- bersihkan layar
-23. shell prompt -- "=== oasis os ===" + "type help" + prompt
-```
 
-### gdt_init
+The network stack is initialized before the shell accepts commands. `eth_dispatch()` then polls incoming packets on every shell-loop iteration and while `ping` waits for a response.
 
-Setup GDT entries dan panggil `lgdt`. Setelah lgdt, reload segment registers:
-- DS/ES/FS/GS = 0x10 (kernel data)
-- CS = 0x08 (kernel code, via far jump)
-- LTRW: load TSS selector (0x28) ke task register
+## GDT, IDT, and PIC
 
-TSS diisi:
-- ESP0 = stack_top (0x29E840)
-- SS0 = 0x10
+`gdt_init()` installs kernel and user code/data segments plus a task state segment. `idt_init()` installs exception handlers, remapped IRQ wrappers, and the system call gate at `int 0x80`. `pic_init()` maps hardware IRQs to interrupt vectors 32 through 47.
 
-Nilai ESP0 dihitung dari `(uint32_t)&stack_top`. `stack_top` adalah label di entry.asm, alamatnya sekitar 0x29E840 (setelah kernel BSS ~2.9MB).
+The timer runs at 100 Hz. The keyboard uses IRQ 1. The RTL8139 IRQ is discovered through PCI and printed by `nicinfo`, but the current network path remains polling-based.
 
-### idt_init
+## Memory and paging
 
-Set 32 ISR + 16 IRQ + int 0x80 dengan:
-- handler: address masing-masing ISR/IRQ wrapper (isr_0..isr_31, irq_0..irq_15, int_80_wrapper)
-- selector: 0x08 (kernel code)
-- type_attr: 0x8E untuk ISR/IRQ (present, ring0, interrupt gate), 0xEF untuk int 0x80 (present, ring3, interrupt gate)
+`memory_init()` reads the E820 map. `pmm_init()` manages physical pages, and `paging_init()` creates:
 
-Kenapa int 0x80 pakai DPL=3? Karena kalau DPL=0, dari ring 3 tidak bisa memanggil int 0x80 → general protection fault.
+- An identity map for the first 4 MiB.
+- Higher-half mappings at `0xC0000000`.
+- User mappings for code, stacks, and the `brk` heap.
 
-### pic_init
+The RTL8139 driver translates its DMA buffers with `virt_to_phys()` before programming device registers.
 
-PIC master dan slave di-remap:
-- master: ICW2 = 32 (IRQ 0 → int 32)
-- slave: ICW2 = 40 (IRQ 8 → int 40)
-- semua IRQ di-mask (0xFF) dulu, kemudian IRQ 0 (timer) dan IRQ 1 (keyboard) di-unmask
+## Network initialization
 
-### timer_init
+The kernel finds Realtek device `10EC:8139` when QEMU exposes the standard model. It extracts an I/O BAR, enables I/O and bus-mastering in PCI configuration space, and initializes the RTL8139 receive ring and transmit descriptors.
 
-PIT channel 0 di-set ke mode 2 (rate generator):
-- divisor = 1193182 / 100 = 11931
-- kirim divisor via port 0x40 (low byte dulu, high byte)
-
-Handler timer (irq_0) akan dipanggil 100x per detik.
-
-### sti
-
-Setelah semua inisialisasi hardware, enable interrupts. Ini penting karena keyboard tidak akan bekerja tanpa interrupt.
-
-### memory_init
-
-Panggil int 0x15 E820 untuk mendapatkan memory map. Hasilnya disimpan di `e820_map`. Map ini dipakai untuk menghitung total usable memory.
-
-### pmm_init
-
-Bitmap 1MB (8M bit) di-reset. Kernel area (0-1MB + kernel binary sampai _end) di-mark sebagai used.
-
-### paging_init
-
-Page tables dibuat:
-1. PDE[0]: identity map 0-4MB (kernel code, VGA buffer, dll)
-2. PDE[0xC00..0xC03]: higher-half mapping 0xC0000000-0xC0400000 (akses kernel dari high address)
-
-### paging_enable
+Then:
 
 ```c
-uint32_t pd_phys = (uint32_t)kernel_page_dir; // physical address
-asm volatile("mov %0, %%cr3" : : "r"(pd_phys));
-uint32_t cr0;
-asm volatile("mov %%cr0, %0" : "=r"(cr0));
-cr0 |= 0x80000000; // PG bit
-asm volatile("mov %0, %%cr0" : : "r"(cr0));
+arp_init();
+eth_init();
+ip_init();
 ```
 
-Setelah paging_enable, semua akses memory menggunakan page tables. Kernel masih bisa mengakses semuanya karena identity map.
-
-### vfs_init
-
-Coba load superblock dari disk. Kalau magic cocok, load inode table dan rebuild block bitmap. Kalau tidak cocok, format filesystem baru (buat root + /home + /bin + /tmp).
-
-### syscall_init
-
-Satu baris:
-```c
-idt_set_entry(0x80, (uint32_t)&int_80_wrapper, 0x08, 0xEF);
-```
-
-0xEF = present | ring3 | interrupt gate. Ini yang membuat int 0x80 bisa dipanggil dari user mode.
+`eth_init()` registers ARP, while `ip_init()` registers IPv4 and ICMP handlers. The shell commands `pci`, `nicinfo`, `arp`, and `ping` expose this path for manual verification.

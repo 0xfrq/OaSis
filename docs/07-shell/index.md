@@ -3,7 +3,68 @@ layout: default
 title: shell
 ---
 
-# shell
+# Shell
+
+The kernel shell runs inside `kernel_main()` and combines filesystem operations, diagnostics, development tools, and network inspection. It is currently a VGA text-mode interface.
+
+## Runtime loop
+
+The shell polls Ethernet before reading keyboard input, so ARP and ICMP packets can be handled while the user is idle:
+
+```c
+while (1) {
+    eth_dispatch();
+    if (!keyboard_available()) {
+        asm volatile("hlt");
+        continue;
+    }
+    char c = keyboard_getchar();
+    /* append input and dispatch complete lines */
+}
+```
+
+## Network commands
+
+### `pci`
+
+Scan PCI bus 0 and print vendor/device IDs, classes, IRQ values, and discovered devices. Use this first when the NIC is not detected.
+
+### `nicinfo`
+
+Print RTL8139 I/O base, IRQ, MAC address, command state, interrupt state, current buffer pointer, and software RX position.
+
+### `arp`
+
+Print valid entries in the eight-entry IP-to-MAC cache. The cache is initially empty and is populated by received ARP packets.
+
+### `ping <ip>`
+
+Send four ICMP echo requests to a dotted IPv4 address. In the default QEMU setup, test the gateway with:
+
+```text
+ping 10.0.2.2
+```
+
+Each request uses a 64-byte ICMP message and waits while the kernel polls Ethernet frames. A cache miss first sends an ARP broadcast. Invalid addresses print `ping: invalid IP`; missing ARP or transmit support prints a network error.
+
+## Filesystem and development commands
+
+The remaining commands include `ls`, `cd`, `pwd`, `mkdir`, `touch`, `rm`, `rmdir`, `cat`, `write`, `append`, `hexdump`, `edit`, `nasm`, `user`, `lex`, `parse`, and `occ`. Use `help` or `help more` inside OaSis for the complete current list.
+
+## Diagnostics
+
+- `dmesg`: dump the circular kernel log.
+- `uptime`: print PIT tick-based uptime.
+- `meminfo`: print physical memory usage.
+- `taskinfo`: print task state.
+- `syscall`: print the system call table.
+
+The [build and testing guide](../09-build/testing/) contains a complete networking smoke test.
+
+### Previous shell implementation notes
+
+The sections below retain the detailed filesystem and application command notes.
+
 
 shell berjalan sebagai infinite loop di `kernel_main()` (`src/kernel/core/kernel.c`).
 
