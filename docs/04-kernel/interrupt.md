@@ -9,7 +9,7 @@ title: Interrupt Handling
 
 The IDT has 256 entries, each 8 bytes:
 - **Base**: `idt` array in `idt.c` (static allocation).
-- **Gate types**: All set as 32-bit interrupt gates (`0x8E`).
+- **Gate types**: all set as 32-bit interrupt gates (`0x8E`).
 - **Selector**: Kernel code segment (`0x08`).
 
 ### Setup (`idt_init`)
@@ -22,7 +22,7 @@ The IDT has 256 entries, each 8 bytes:
 ### Exception Categories
 | Range | Type | Examples |
 |-------|------|---------|
-| 0-7 | General exceptions | Divide-by-zero (0), GPF (13), Page Fault (14) |
+| 0-7 | General exceptions | Divide-by-zero (0), GPF (13), page Fault (14) |
 | 8-14 | Exceptions with error codes | Double fault (8), Invalid TSS (10), Stack fault (12) |
 | 15-31 | Reserved/other | FPU (16), Alignment check (17), SIMD (19) |
 
@@ -51,28 +51,28 @@ For ring 3 exceptions, the CPU also pushes SS and user_ESP before the error code
 ### Handler Flow
 1. PUSHA saves all general registers.
 2. DS is pushed and reloaded with kernel data segment (`0x10`).
-3. Error code and int number are pushed as arguments.
+3. error code and int number are pushed as arguments.
 4. C function `interrupt_handler(int_num, err_code)` is called.
 5. Arguments are popped, DS is restored, POPA restores registers.
 6. IRET returns to the interrupted context.
 
-## Syscall Handler (`int 0x80`)
+## System call handler (`int 0x80`)
 
-### Ring Detection
+### Ring detection
 The handler checks `[esp+36]` (CS value from CPU push):
 - `0x08` — from ring 0 (kernel). Stack has 3 CPU-pushed words: EIP, CS, EFLAGS.
 - `0x1B` — from ring 3 (user). Stack has 5 CPU-pushed words: SS, ESP, EFLAGS, CS, EIP.
 
-### Ring 0 Path
+### Ring 0 path
 1. Load syscall number and arguments from PUSHA frame.
 2. Push arguments to stack, call `int_80_handler()`.
 3. Store return value to EAX slot in PUSHA frame.
 4. POPA, IRET (pops EIP, CS, EFLAGS — 3 words).
 
-### Ring 3 Path
-1. Same argument loading as ring 0.
-2. After handler returns, check `user_exit_flag`.
-3. If exit requested, overwrite iret frame with kernel return values:
+### Ring 3 path
+1. same argument loading as ring 0.
+2. after handler returns, check `user_exit_flag`.
+3. if exit requested, overwrite iret frame with kernel return values:
    - EIP = `user_exit_eip` (address of `user_return_to_shell`)
    - CS = `0x08` (kernel code)
    - ESP = `user_exit_esp` (kernel stack)

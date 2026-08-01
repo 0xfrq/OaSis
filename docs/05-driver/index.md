@@ -9,7 +9,7 @@ This section documents the hardware boundary of OaSis. The [networking internals
 
 ## Driver catalog
 
-| Driver | Status | Source |
+| driver | status | Source |
 | --- | --- | --- |
 | PCI configuration space | Implemented for bus 0 | `src/kernel/drivers/pci.c` |
 | RTL8139 Ethernet | Implemented for QEMU, polling mode | `src/kernel/drivers/rtl8139.c` |
@@ -22,18 +22,18 @@ This section documents the hardware boundary of OaSis. The [networking internals
 
 ## Networking
 
-Read [Networking internals](networking/) for PCI discovery, RTL8139 DMA, Ethernet frames, ARP resolution, IPv4 validation, ICMP echo, QEMU setup, and troubleshooting.
+read [Networking internals](networking/) for PCI discovery, RTL8139 DMA, Ethernet frames, ARP resolution, IPv4 validation, ICMP echo, QEMU setup, and troubleshooting.
 
 ## Legacy driver details
 
 The sections below retain the detailed keyboard, timer, VGA, ATA, block-cache, PIC, and port-I/O notes from the original driver guide.
 
 
-## keyboard (ps/2)
+## Keyboard (ps/2)
 
 file: `src/kernel/drivers/keyboard.c`
 
-### inisialisasi
+### Initialization
 
 ```c
 void keyboard_init(void) {
@@ -43,11 +43,11 @@ void keyboard_init(void) {
 }
 ```
 
-### handler interrupt (irq1)
+### Handler interrupt (irq1)
 
 ```c
 void keyboard_interrupt_handler(void) {
- uint8_t scancode = inb(KEYBOARD_DATA); // baca dari port 0x60
+ uint8_t scancode = inb(KEYBOARD_DATA); // read from port 0x60
 
  if (scancode == 0xE0) { extended_key = 1; return; }
  if (extended_key) {
@@ -78,7 +78,7 @@ void keyboard_interrupt_handler(void) {
 }
 ```
 
-### circular buffer
+### Circular buffer
 
 ```c
 static uint8_t keyboard_buffer[KEYBOARD_BUFFER_SIZE]; // 
@@ -86,7 +86,7 @@ static volatile int read_pos = 0;
 static volatile int write_pos = 0;
 ```
 
-### keyboard_getchar
+### Keyboard_getchar
 
 ```c
 char keyboard_getchar(void) {
@@ -99,9 +99,9 @@ char keyboard_getchar(void) {
 }
 ```
 
-`sti; hlt` adalah atomik di x86: interrupt di-enable saat cpu hlt, jadi kalau ada keyboard irq, cpu akan bangun.
+`sti; hlt` is atomic on x86: interrupts are enabled when the CPU halts, so a keyboard IRQ wakes the CPU.
 
-### keymap
+### Keymap
 
 ```c
 static const char keymap_us[128] = {
@@ -112,11 +112,11 @@ static const char keymap_us[128] = {
 };
 ```
 
-## timer (pit)
+## Timer (pit)
 
 file: `src/kernel/drivers/timer.c`
 
-### inisialisasi
+### Initialization
 
 ```c
 void timer_init(uint32_t frequency) {
@@ -126,11 +126,11 @@ void timer_init(uint32_t frequency) {
  outb(PIT_CHANNEL_0, divisor & 0xFF); // low byte
  outb(PIT_CHANNEL_0, (divisor >> 8) & 0xFF); // high byte
 
- pic_enable_irq(0); // enable timer irq di pic
+ pic_enable_irq(0); // enable the timer IRQ in the PIC
 }
 ```
 
-### handler
+### Handler
 
 ```c
 void timer_interrupt_handler(void) {
@@ -139,9 +139,9 @@ void timer_interrupt_handler(void) {
 }
 ```
 
-100hz -> tiap 10ms trigger sekali. `ticks` counter bisa dipakai untuk uptime.
+100hz -> fires every 10 ms. `ticks` counter can used for uptime.
 
-### timer_get_ticks / timer_sleep
+### Timer_get_ticks / timer_sleep
 
 ```c
 uint32_t timer_get_ticks(void) { return ticks; }
@@ -152,24 +152,24 @@ void timer_sleep(uint32_t ms) {
 }
 ```
 
-## vga text mode
+## Vga text mode
 
 file: `src/kernel/core/vga.c`
 
-### memory
+### Memory
 
 ```c
-#define VGA_MEMORY 0xB8000
+# Define VGA_MEMORY 0xB8000
 static uint16_t* vga_buffer = (uint16_t*)VGA_MEMORY;
 ```
 
-tiap karakter : char (low) + attribute (high).
+each character : char (low) + attribute (high).
 attribute: 4-bit foreground + 4-bit background.
 
-### fungsi
+### Function
 
 ```c
-void vga_putc(char c); // tulis karakter, handle \n, \b, scroll
+void vga_putc(char c); // write a character, handle \n, \b, scroll
 void vga_print(const char* s); // print string
 void vga_clear(void); // bersihin layar
 void vga_set_color(uint8_t fg, uint8_t bg);
@@ -178,7 +178,7 @@ void vga_write_char(uint8_t x, uint8_t y, char c, uint8_t color);
 void vga_fill_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, char c, uint8_t color);
 ```
 
-### vga_putc
+### Vga_putc
 
 ```c
 void vga_putc(char c) {
@@ -191,19 +191,19 @@ void vga_putc(char c) {
 }
 ```
 
-### scroll
+### Scroll
 
-geser layar ke atas banyak baris:
+move the screen up by several lines:
 ```c
 for (y = 1; y < 25; y++)
  for (x = 0; x < 80; x++)
  buffer[(y-1)*80 + x] = buffer[y*80 + x];
-// clear baris terakhir
+// clear last row
 for (x = 0; x < 80; x++)
  buffer[24*80 + x] = ' ' | (color << 8);
 ```
 
-### hardware cursor
+### Hardware cursor
 
 program cursor position via crtc registers:
 ```c
@@ -212,11 +212,11 @@ outb(VGA_CTRL_REG, 0x0F); outb(VGA_DATA_REG, pos & 0xFF);
 outb(VGA_CTRL_REG, 0x0E); outb(VGA_DATA_REG, (pos >> 8) & 0xFF);
 ```
 
-## ata (ide) -- pio mode
+## Ata (ide) -- pio mode
 
 file: `src/kernel/drivers/ata.c`
 
-### port
+### Port
 
 ```text
 0x1F0: data port (16-bit)
@@ -228,7 +228,7 @@ file: `src/kernel/drivers/ata.c`
 0x1F7: command/status
 ```
 
-### read sector (pio, lba28)
+### Read sector (pio, lba28)
 
 ```c
 ata_read_sector(uint32_t lba, void *buffer) {
@@ -252,11 +252,11 @@ ata_read_sector(uint32_t lba, void *buffer) {
 }
 ```
 
-## block cache
+## Block cache
 
 file: `src/kernel/drivers/block.c`
 
-entry cache untuk mengurangi akses disk langsung.
+entry cache for mengurangi akses disk directly.
 
 ```c
 typedef struct {
@@ -269,7 +269,7 @@ typedef struct {
 static cache_entry_t cache[64];
 ```
 
-### block_read
+### Block_read
 
 ```c
 int block_read(uint32_t abs_block, uint8_t *buffer) {
@@ -280,9 +280,9 @@ int block_read(uint32_t abs_block, uint8_t *buffer) {
  return 0;
  }
  }
- // cache miss -> baca dari disk via ata
+ // cache miss -> read from disk through ATA
  ata_read_sector(abs_block, buffer);
- // simpen ke cache (evict kalo penuh)
+ // store in the cache (evict if full)
  int slot = find_free_cache();
  cache[slot].block_num = abs_block;
  memcpy(cache[slot].data, buffer, BLOCK_SIZE);
@@ -292,39 +292,39 @@ int block_read(uint32_t abs_block, uint8_t *buffer) {
 }
 ```
 
-### block_write
+### Block_write
 
 ```c
 int block_write(uint32_t abs_block, const uint8_t *buffer) {
- // cari slot cache
+ // find a free cache slot
  int slot = find_free_cache();
  cache[slot].block_num = abs_block;
  memcpy(cache[slot].data, buffer, BLOCK_SIZE);
  cache[slot].valid = 1;
  cache[slot].dirty = 1; // marked dirty, bakal di-flush nanti
- // langsung tulis ke disk juga
+ // write directly to disk as well
  ata_write_sector(abs_block, buffer);
  cache[slot].dirty = 0;
  return 0;
 }
 ```
 
-### block_flush
+### Block_flush
 
-tulis semua dirty cache ke disk:
+write all dirty cache entries to disk:
 ```c
 for (int i = 0; i < 64; i++)
  if (cache[i].valid && cache[i].dirty)
  ata_write_sector(cache[i].block_num, cache[i].data);
 ```
 
-## pic
+## Pic
 
 file: `src/kernel/drivers/pic.c`
 
-### init
+### Init
 
-remap irq 0-7 ke interrupt 32-39, irq 8-15 ke 40-47:
+remap IRQ 0-7 to interrupts 32-39, irq 8-15 to 40-47:
 ```c
 outb(PIC_MASTER_CMD, ICW1_INIT | ICW1_ICW4); // 0x11
 outb(PIC_SLAVE_CMD, ICW1_INIT | ICW1_ICW4);
@@ -334,11 +334,11 @@ outb(PIC_MASTER_DATA, 0x04); // icw3: slave on irq2
 outb(PIC_SLAVE_DATA, 0x02); // icw3: slave id 2
 outb(PIC_MASTER_DATA, ICW4_8086); // 0x01
 outb(PIC_SLAVE_DATA, ICW4_8086);
-outb(PIC_MASTER_DATA, 0xFF); // mask semua irq dulu
+outb(PIC_MASTER_DATA, 0xFF); // mask all IRQs first
 outb(PIC_SLAVE_DATA, 0xFF);
 ```
 
-### enable/disable irq
+### Enable/disable irq
 
 ```c
 void pic_enable_irq(int irq) {
@@ -350,7 +350,7 @@ void pic_enable_irq(int irq) {
 }
 ```
 
-## io ports
+## Io ports
 
 file: `src/kernel/drivers/io.c`
 

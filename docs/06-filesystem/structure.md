@@ -1,8 +1,8 @@
-# struktur filesystem
+# Structure filesystem
 
-dokumentasi ini membahas detail struktur oafs di disk.
+this page explains details of the OAFS disk structure.
 
-## daftar isi
+## Contents
 
 - [overview](#overview)
 - [boot sector](#boot-sector)
@@ -15,9 +15,9 @@ dokumentasi ini membahas detail struktur oafs di disk.
 
 ---
 
-## overview
+## Overview
 
-oafs divide disk jadi beberapa region:
+OAFS divide disk jadi beberapa region:
 
 ```text
 ┌─────────────────────────────────────┐
@@ -35,17 +35,17 @@ oafs divide disk jadi beberapa region:
 └─────────────────────────────────────┘
 ```
 
-## boot sector
+## Boot sector
 
-**boot sector** adalah block pertama di disk (block 0).
+**boot sector** is first block on disk (block 0).
 
-### fungsi
+### Function
 
 - tempat bootloader code
-- signature (0xAA55 di offset 510-511)
+- signature (0xAA55 at offset 510-511)
 - partition table (opsional)
 
-### struktur
+### Structure
 
 ```c
 struct boot_sector {
@@ -74,60 +74,60 @@ struct boot_sector {
 } __attribute__((packed));
 ```
 
-**catatan:** OaSis tidak menggunakan semua field ini, hanya untuk compatibility.
+**note:** OaSis not using all field this, only for compatibility.
 
-## superblock
+## Superblock
 
-**superblock** menyimpan metadata filesystem.
+**superblock** store metadata filesystem.
 
-### lokasi
+### Lokasi
 
-block 1 (setelah boot sector)
+block 1 (after boot sector)
 
-### struktur
+### Structure
 
 ```c
 struct superblock {
     uint32_t magic;              // 0x4F414653 ("OAFS")
     uint32_t version;            // filesystem version
-    uint32_t total_blocks;       // total blocks di disk
-    uint32_t free_blocks;        // blocks yang free
+    uint32_t total_blocks;       // total blocks on disk
+    uint32_t free_blocks;        // free blocks
     uint32_t total_inodes;       // total inodes
-    uint32_t free_inodes;        // inodes yang free
+    uint32_t free_inodes;        // free inodes
     uint32_t block_size;         // 512 bytes
     uint32_t blocks_per_group;   // blocks per group
-    uint32_t bitmap_start;       // start block dari block bitmap
-    uint32_t inode_bitmap_start; // start block dari inode bitmap
-    uint32_t inode_table_start;  // start block dari inode table
-    uint32_t data_start;         // start block dari data blocks
-    uint32_t root_inode;         // inode number dari root directory
+    uint32_t bitmap_start;       // start block of the block bitmap
+    uint32_t inode_bitmap_start; // start block of the inode bitmap
+    uint32_t inode_table_start;  // start block of the inode table
+    uint32_t data_start;         // start block of the data blocks
+    uint32_t root_inode;         // inode number of the root directory
     uint32_t reserved[20];       // buat future use
 } __attribute__((packed));
 ```
 
-### field penting
+### Field penting
 
-**magic number**: `0x4F414653` ("OAFS" dalam ASCII)
-- digunakan untuk verify ini oafs filesystem
+**magic number**: `0x4F414653` ("OAFS" in ASCII)
+- used for verify this OAFS filesystem
 
-**total_blocks**: jumlah total block di disk
-- termasuk boot, superblock, bitmap, inode, data
+**total_blocks**: total number of disk blocks
+- includes the boot block, superblock, bitmap, inode table, and data
 
-**free_blocks**: jumlah block yang masih free
-- di-update setiap alloc/free block
+**free_blocks**: number block that still free
+- di-update each alloc/free block
 
-**root_inode**: inode number dari root directory
-- biasanya 0 atau 1
+**root_inode**: inode number from root directory
+- usually 0 or 1
 
-## block bitmap
+## Block bitmap
 
-**block bitmap** track block mana yang free/used.
+**block bitmap** track block mana free/used.
 
-### lokasi
+### Lokasi
 
-mulai dari `bitmap_start` (biasanya block 2)
+start from `bitmap_start` (usually block 2)
 
-### struktur
+### Structure
 
 ```text
 1 bit = 1 block
@@ -137,20 +137,20 @@ bit 0 = block 0, bit 1 = block 1, dst
 1 = used
 ```
 
-### ukuran
+### Ukuran
 
 ```text
 bitmap_size = (total_blocks + 7) / 8 bytes
 bitmap_blocks = (bitmap_size + 511) / 512
 ```
 
-**contoh:** disk 10 MB = 20480 blocks
+**example:** disk 10 MB = 20480 blocks
 ```text
 bitmap_size = (20480 + 7) / 8 = 2560 bytes
 bitmap_blocks = (2560 + 511) / 512 = 6 blocks
 ```
 
-### operasi
+### Operations
 
 **alloc block:**
 ```c
@@ -174,17 +174,17 @@ void free_block(int block_num) {
 }
 ```
 
-## inode bitmap
+## Inode bitmap
 
-**inode bitmap** track inode mana yang free/used.
+**inode bitmap** track inode mana free/used.
 
-### lokasi
+### Lokasi
 
-setelah block bitmap
+after block bitmap
 
-### struktur
+### Structure
 
-sama kayak block bitmap, tapi track inodes:
+same kayak block bitmap, tapi track inodes:
 
 ```text
 1 bit = 1 inode
@@ -192,29 +192,29 @@ sama kayak block bitmap, tapi track inodes:
 1 = used
 ```
 
-### ukuran
+### Ukuran
 
 ```text
 bitmap_size = (total_inodes + 7) / 8 bytes
 bitmap_blocks = (bitmap_size + 511) / 512
 ```
 
-## inode table
+## Inode table
 
-**inode table** menyimpan semua inode.
+**inode table** store all inode.
 
-### lokasi
+### Lokasi
 
-setelah inode bitmap
+after inode bitmap
 
-### struktur inode
+### Structure inode
 
 ```c
 struct inode {
     uint16_t mode;           // file type + permissions
     uint16_t uid;            // user id
     uint16_t gid;            // group id
-    uint32_t size;           // file size dalam bytes
+    uint32_t size;           // file size in bytes
     uint32_t atime;          // access time
     uint32_t mtime;          // modification time
     uint32_t ctime;          // creation time
@@ -229,67 +229,67 @@ struct inode {
 
 **inodes per block**: 512 / 64 = 8 inodes
 
-### file types
+### File types
 
 ```c
-#define INODE_FILE      0x8000  // regular file
-#define INODE_DIRECTORY 0x4000  // directory
-#define INODE_SYMLINK   0x2000  // symbolic link
+# Define INODE_FILE      0x8000  // regular file
+# Define INODE_DIRECTORY 0x4000  // directory
+# Define INODE_SYMLINK   0x2000  // symbolic link
 ```
 
-### block pointers
+### Block pointers
 
 **direct blocks (12 pointers)**:
-- langsung point ke data block
+- point directly to a data block
 - max: 12 * 512 = 6144 bytes
 
 **single indirect**:
-- point ke block yang isinya pointers
+- point to a block containing pointers
 - max: (512/4) * 512 = 65536 bytes
 
 **double indirect**:
-- point ke block yang isinya single indirect pointers
+- point to a block containing single-indirect pointers
 - max: (512/4) * 65536 = 8388608 bytes
 
 **triple indirect**:
-- point ke block yang isinya double indirect pointers
+- point to a block containing double-indirect pointers
 - max: (512/4) * 8388608 = 1073741824 bytes
 
 **total max file size**: ~1 GB
 
-## data blocks
+## Data blocks
 
-**data blocks** adalah region dimana actual file data disimpen.
+**data blocks** is region dimana actual file data disimpen.
 
-### lokasi
+### Lokasi
 
-setelah inode table sampai end of disk
+after inode table until end of disk
 
-### ukuran
+### Ukuran
 
 ```text
 data_blocks = total_blocks - (1 + 1 + bitmap_blocks + inode_table_blocks)
 ```
 
-### block types
+### Block types
 
 **file data block**:
-- menyimpan actual file content
+- store actual file content
 - 512 bytes per block
 
 **directory block**:
-- menyimpan directory entries
-- format khusus (lihat di bawah)
+- store directory entries
+- special format (see below)
 
 **indirect block**:
-- menyimpan block pointers (4 bytes each)
+- store block pointers (4 bytes each)
 - 512 / 4 = 128 pointers per block
 
-## directory structure
+## Directory structure
 
-directory adalah special file yang isinya list of entries.
+directory is special file that isinya list of entries.
 
-### directory entry
+### Directory entry
 
 ```c
 struct dirent {
@@ -301,7 +301,7 @@ struct dirent {
 
 **ukuran**: minimal 6 bytes, maksimal 260 bytes
 
-### contoh directory
+### Example directory
 
 ```text
 /home/user:
@@ -311,17 +311,17 @@ struct dirent {
   entry 4: inode=12, name="file.txt"
 ```
 
-### special entries
+### Special entries
 
 **"."**: current directory
 **".."**: parent directory
 
-### operasi directory
+### Operations directory
 
 **add entry:**
 ```c
 int dir_add_entry(int dir_inode, const char *name, int file_inode) {
-    // find empty slot atau allocate new block
+    // find an empty slot or allocate a new block
     // write dirent
     // update directory size
 }
@@ -331,7 +331,7 @@ int dir_add_entry(int dir_inode, const char *name, int file_inode) {
 ```c
 int dir_remove_entry(int dir_inode, const char *name) {
     // find entry
-    // mark as deleted (atau compact)
+    // mark as deleted (or compact)
     // update directory size
 }
 ```
@@ -347,7 +347,7 @@ int dir_find_entry(int dir_inode, const char *name, struct dirent *entry) {
 
 ---
 
-## contoh: create file
+## Example: create file
 
 ```text
 user: touch /home/test.txt
@@ -374,4 +374,4 @@ user: touch /home/test.txt
 
 ---
 
-**kembali ke:** [filesystem →](readme.md) | **selanjutnya:** [operations →](operations.md)
+**back to:** [filesystem →](readme.md) | **next:** [operations →](operations.md)

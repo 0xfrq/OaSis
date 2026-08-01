@@ -71,8 +71,8 @@ QEMU network
   -> RTL8139 RX ring
   -> rtl8139_poll()
   -> eth_dispatch()
-  -> arp_handle_packet() or ip_handle_packet()
-  -> icmp_handle_packet()
+  -> arp_handles_packet() or ip_handles_packet()
+  -> icmp_handles_packet()
 ```
 
 See [Networking internals](../05-driver/networking/) for packet layouts, register behavior, and current limitations.

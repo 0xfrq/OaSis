@@ -1,8 +1,8 @@
-# timer driver
+# Timer driver
 
-dokumentasi ini membahas bagaimana OaSis mengatur waktu menggunakan PIT (Programmable Interval Timer).
+this page explains bagaimana OaSis set waktu using PIT (Programmable Interval Timer).
 
-## daftar isi
+## Contents
 
 - [overview](#overview)
 - [pit (programmable interval timer)](#pit-programmable-interval-timer)
@@ -12,37 +12,37 @@ dokumentasi ini membahas bagaimana OaSis mengatur waktu menggunakan PIT (Program
 
 ---
 
-## overview
+## Overview
 
-**timer driver** di OaSis menggunakan PIT untuk generate periodic interrupt.
+**timer driver** uses the PIT to generate periodic interrupts.
 
-### fungsi
+### Function
 
-- generate interrupt setiap 10 ms (100 Hz)
+- generate interrupt each 10 ms (100 Hz)
 - tracking system uptime
-- trigger scheduler untuk preemptive multitasking
+- trigger scheduler for preemptive multitasking
 - support sleep/delay functions
 
-### kenapa butuh timer?
+### Why butuh timer?
 
-- **preemptive scheduling**: task bisa di-interrupt otomatis
-- **time tracking**: tahu berapa lama system sudah jalan
-- **delay/sleep**: task bisa sleep untuk durasi tertentu
-- **timeout**: detect operasi yang terlalu lama
+- **preemptive scheduling**: task can di-interrupt otomatis
+- **time tracking**: tahu berapa old system already jalan
+- **delay/sleep**: tasks can sleep for a specific duration
+- **timeout**: detect operations that take too long
 
-## pit (programmable interval timer)
+## Pit (programmable interval timer)
 
-PIT adalah chip yang bisa generate periodic interrupt.
+PIT is chip that can generate periodic interrupt.
 
-### karakteristik
+### Karakteristik
 
 - **base frequency**: 1.193182 MHz
 - **3 channels**:
-  - channel 0: system timer (yang kita menggunakan)
-  - channel 1: DRAM refresh (tidak digunakan)
-  - channel 2: PC speaker (tidak digunakan)
+  - channel 0: system timer (that kita using)
+  - channel 1: DRAM refresh (not used)
+  - channel 2: PC speaker (not used)
 
-### port I/O
+### Port I/O
 
 ```text
 0x40: channel 0 data
@@ -51,22 +51,22 @@ PIT adalah chip yang bisa generate periodic interrupt.
 0x43: command register
 ```
 
-## konfigurasi timer
+## Konfigurasi timer
 
-### set frequency
+### Set frequency
 
-untuk set frequency, kita hitung divider:
+for set frequency, kita hitung divider:
 
 ```text
 divider = base_frequency / desired_frequency
 ```
 
-**contoh:** 100 Hz (10 ms interval)
+**example:** 100 Hz (10 ms interval)
 ```text
 divider = 1193182 / 100 = 11932
 ```
 
-### implementasi
+### Implementasi
 
 ```c
 void timer_init(uint32_t frequency) {
@@ -85,31 +85,31 @@ void timer_init(uint32_t frequency) {
 }
 ```
 
-## interrupt handling
+## Interrupt handling
 
-timer menggunakan **IRQ 0** (interrupt 32 setelah remapping).
+timer using **IRQ 0** (interrupt 32 after remapping).
 
-### flow
+### Flow
 
 ```text
-PIT generate interrupt setiap 10 ms
+PIT generates an interrupt every 10 ms
   ↓
 IRQ 0 triggered
   ↓
-cpu lompat ke int 32
+CPU jumps to interrupt 32
   ↓
-timer_handler() dipanggil
+timer_handler() is called
   ↓
 increment tick counter
   ↓
 call scheduler (preemptive)
   ↓
-send EOI ke pic
+send EOI to the PIC
   ↓
-return dari interrupt
+return from the interrupt
 ```
 
-### implementasi
+### Implementasi
 
 ```c
 static uint32_t tick = 0;
@@ -130,93 +130,93 @@ void timer_handler(void) {
 }
 ```
 
-## api reference
+## Api reference
 
-### inisialisasi
+### Initialization
 
 ```c
 void timer_init(uint32_t frequency);
 ```
 
-inisialisasi timer dengan frequency tertentu (dalam Hz).
+initialization timer with a specific frequency (in Hz).
 
 **parameter:**
-- `frequency`: interrupt frequency (biasanya 100 Hz = 10 ms)
+- `frequency`: interrupt frequency (usually 100 Hz = 10 ms)
 
-**contoh:**
+**example:**
 ```c
-timer_init(100);  // 100 Hz = interrupt setiap 10 ms
+timer_init(100);  // 100 Hz = interrupt every 10 ms
 ```
 
-### get tick
+### Get tick
 
 ```c
 uint32_t timer_get_tick(void);
 ```
 
-mendapatkan jumlah tick sejak boot.
+get the number of ticks since boot.
 
-**return:** jumlah tick
+**return:** number tick
 
-**catatan:** 1 tick = 10 ms (kalau frequency 100 Hz)
+**note:** 1 tick = 10 ms (if frequency 100 Hz)
 
-### get uptime (seconds)
+### Get uptime (seconds)
 
 ```c
 uint32_t timer_get_uptime_seconds(void);
 ```
 
-mendapatkan uptime dalam detik.
+get uptime in seconds.
 
-**return:** uptime dalam detik
+**return:** uptime in detik
 
-### get uptime (milliseconds)
+### Get uptime (milliseconds)
 
 ```c
 uint32_t timer_get_uptime_ms(void);
 ```
 
-mendapatkan uptime dalam millisecond.
+get uptime in milliseconds.
 
-**return:** uptime dalam ms
+**return:** uptime in ms
 
-### delay
+### Delay
 
 ```c
 void timer_delay(uint32_t ms);
 ```
 
-delay (blocking) untuk beberapa millisecond.
+delay (blocking) for beberapa millisecond.
 
 **parameter:**
-- `ms`: jumlah millisecond untuk delay
+- `ms`: number millisecond for delay
 
-**contoh:**
+**example:**
 ```c
 timer_delay(1000);  // delay 1 second
 ```
 
-### sleep
+### Sleep
 
 ```c
 void timer_sleep(uint32_t ticks);
 ```
 
-sleep (non-blocking, task yield) untuk beberapa tick.
+sleep (non-blocking, task yield) for beberapa tick.
 
 **parameter:**
-- `ticks`: jumlah tick untuk sleep (1 tick = 10 ms)
+- `ticks`: number tick for sleep (1 tick = 10 ms)
 
-**contoh:**
+**example:**
 ```c
 timer_sleep(100);  // sleep 1 second (100 * 10ms)
 ```
 
 ---
 
-## contoh penggunaan
+## Usage example
 
-### contoh 1: uptime display
+### Example 1: uptime display
 
 ```c
 void show_uptime(void) {
@@ -233,7 +233,7 @@ void show_uptime(void) {
 }
 ```
 
-### contoh 2: periodic task
+### Example 2: periodic task
 
 ```c
 void periodic_task(void) {
@@ -252,7 +252,7 @@ void periodic_task(void) {
 }
 ```
 
-### contoh 3: timeout
+### Example 3: timeout
 
 ```c
 int wait_with_timeout(int (*condition)(void), uint32_t timeout_ms) {
@@ -271,21 +271,21 @@ int wait_with_timeout(int (*condition)(void), uint32_t timeout_ms) {
 
 ---
 
-## troubleshooting
+## Troubleshooting
 
-### timer tidak jalan
+### Timer not jalan
 
-- cek IRQ 0 enabled di PIC
-- cek timer_handler() registered di IDT
+- check that IRQ 0 is enabled in the PIC
+- check that timer_handler() is registered in the IDT
 - cek PIT initialization
 
-### interrupt terlalu sering/jarang
+### Interrupts too frequent or too rare
 
 - cek frequency parameter
 - cek divisor calculation
 - cek PIT command byte
 
-### scheduler tidak dipanggil
+### Scheduler not called
 
 - cek timer_handler() call schedule()
 - cek current_task != NULL
@@ -293,4 +293,4 @@ int wait_with_timeout(int (*condition)(void), uint32_t timeout_ms) {
 
 ---
 
-**kembali ke:** [driver →](readme.md)
+**back to:** [driver →](readme.md)

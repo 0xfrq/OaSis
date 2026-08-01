@@ -1,13 +1,13 @@
 ---
 layout: default
-title: System Calls
+title: system Calls
 ---
 
 # System Calls
 
 ## Calling Convention
 
-All system calls use `int 0x80` with arguments in registers:
+all system calls use `int 0x80` with arguments in registers:
 
 ```text
 eax = syscall number
@@ -27,65 +27,65 @@ int 0x80
 ```
 
 ### From Ring 3 (user mode)
-Same mechanism — the handler detects ring 3 by checking CS at [esp+36] and handles the larger iret frame (5 words vs 3).
+same mechanism — the handler detects ring 3 by checking CS at [esp+36] and handles the larger iret frame (5 words vs 3).
 
 ## Syscall Dispatch
 
 `int_80_handler(syscall_num, arg1, arg2, arg3)` delegates to `syscall_dispatch()`, which uses a switch statement to call the appropriate handler function.
 
-## Complete Syscall Table
+## Complete system call table
 
-| # | Name | Args | Description | Impl |
+| # | name | Args | Description | Impl |
 |---|------|------|-------------|------|
 | 0 | SYSCALL_WRITE | msg, len | Legacy write to stdout | `fd_write(STDOUT_FILENO)` |
 | 1 | SYSCALL_SLEEP | ms | Sleep for milliseconds | Stub (returns 0) |
 | 2 | SYSCALL_YIELD | — | Yield CPU to scheduler | `task_switch()` |
-| 3 | SYSCALL_EXIT | exit_code | Exit current process | Marks TASK_DEAD, closes fds |
+| 3 | SYSCALL_EXIT | exit_code | Exit current process | Marks task_DEAD, closes fds |
 | 4 | SYSCALL_GETPID | — | Get process ID | Returns `current_task->id` |
 | 5 | SYSCALL_FORK | — | Fork process | `task_fork()` |
 | 6 | SYSCALL_EXEC | program, size | Execute program | `task_exec()` |
 | 7 | SYSCALL_WAIT | status | Wait for child | `task_wait(status)` |
 | 8 | SYSCALL_GETPPID | — | Get parent PID | Returns `current_task->ppid` |
-| 9 | SYSCALL_OPEN | path, flags | Open file | `fd_open(table, path, flags)` |
-| 10 | SYSCALL_CLOSE | fd | Close fd | `fd_close(table, fd)` |
-| 11 | SYSCALL_READ | fd, buf, count | Read from fd | `fd_read(table, fd, buf, count)` |
-| 12 | SYSCALL_WRITE_FD | fd, buf, count | Write to fd | `fd_write(table, fd, buf, count)` |
+| 9 | SYSCALL_open | path, flags | open file | `fd_open(table, path, flags)` |
+| 10 | SYSCALL_close | fd | close fd | `fd_close(table, fd)` |
+| 11 | SYSCALL_read | fd, buf, count | read from fd | `fd_read(table, fd, buf, count)` |
+| 12 | SYSCALL_WRITE_FD | fd, buf, count | write to fd | `fd_write(table, fd, buf, count)` |
 | 13 | SYSCALL_PIPE | pipefd[2] | Create pipe | `fd_pipe(table, pipefd)` |
 | 14 | SYSCALL_DUP | oldfd | Duplicate fd | `fd_dup(table, oldfd)` |
 | 15 | SYSCALL_DUP2 | oldfd, newfd | Dup2 fd | `fd_dup2(table, oldfd, newfd)` |
 | 16 | SYSCALL_SEEK | fd, offset, whence | Seek in fd | `fd_seek(table, fd, offset, whence)` |
 | 17 | SYSCALL_FDINFO | — | Show fd table | Prints kernel fd list |
-| 18 | SYSCALL_BLOCK_READ | block, buf | Read disk block | `block_read(block, buf)` |
-| 19 | SYSCALL_BLOCK_WRITE | block, buf | Write disk block | `block_write(block, buf)` |
-| 20 | SYSCALL_BLOCK_FLUSH | — | Flush disk cache | `block_flush()` |
+| 18 | SYSCALL_block_read | block, buf | read disk block | `block_read(block, buf)` |
+| 19 | SYSCALL_block_write | block, buf | write disk block | `block_write(block, buf)` |
+| 20 | SYSCALL_block_FLUSH | — | Flush disk cache | `block_flush()` |
 | 21 | SYSCALL_USER_EXIT | — | Exit user mode | Sets `user_exit_flag`, triggers iret redirect |
 | 22 | SYSCALL_BRK | addr | User heap brk | Allocates pages at heap address |
 
-## User Mode Exit Flow
+## User mode exit flow
 
-When `SYSCALL_USER_EXIT` is called from ring 3:
+when `SYSCALL_USER_EXIT` is called from ring 3:
 
 1. `syscall_user_exit()` in C sets `user_exit_flag = 1`.
 2. Back in `int_80_wrapper` (assembly), the flag is checked.
-3. If set, the iret frame is overwritten:
+3. if set, the iret frame is overwritten:
    - EIP = `user_exit_eip` (address of `user_return_to_shell`)
    - CS = `0x08`, ESP = `user_exit_esp`, SS = `0x10`
-4. After IRET, execution jumps to `user_return_to_shell`:
+4. after IRET, execution jumps to `user_return_to_shell`:
    - Restores CR3 to `kernel_page_dir`
    - Restores stack via `user_exit_esp`
    - Restores EBP and returns to shell.
 
-## External Symbols
+## External symbols
 
 The built-in assembler maps these symbol names to kernel functions:
 
-| Symbol | Function | Description |
+| Symbol | function | Description |
 |--------|----------|-------------|
 | `_printf` | `klibc_printf` | Direct VGA printf (ring 0) |
 | `_putchar` | `klibc_putchar` | Direct VGA putchar |
 | `_malloc` | `klibc_malloc` | Kernel heap alloc |
 | `_free` | `klibc_free` | Kernel heap free |
-| `_sys_open` | `syscall_open` | File open (both rings) |
-| `_sys_read` | `syscall_read` | File read |
-| `_sys_write_fd` | `syscall_write_fd` | File write |
+| `_sys_open` | `syscall_open` | file open (both rings) |
+| `_sys_read` | `syscall_read` | file read |
+| `_sys_write_fd` | `syscall_write_fd` | file write |
 | `_usr_printf` | `usr_printf` | Printf via syscall (ring 3 safe) |

@@ -49,7 +49,7 @@ For example, white text on black is `0x0F`, and yellow text on blue is `0x1E`.
 
 ## Cursor and scrolling
 
-`vga_putc()` handles printable characters, newline, backspace, line wrapping, and scrolling. `vga_refresh_cursor()` updates the hardware cursor through VGA CRTC ports `0x3D4` and `0x3D5`.
+`vga_putc()` handless printable characters, newline, backspace, line wrapping, and scrolling. `vga_refresh_cursor()` updates the hardware cursor through VGA CRTC ports `0x3D4` and `0x3D5`.
 
 The driver scrolls the text buffer when the cursor reaches the last row. It clears the newly exposed bottom row with the current color.
 
@@ -57,13 +57,13 @@ The driver scrolls the text buffer when the cursor reaches the last row. It clea
 
 The main functions are:
 
-| Function | Purpose |
+| function | Purpose |
 | --- | --- |
 | `vga_clear()` | Clear the screen and reset the cursor. |
-| `vga_putc(c)` | Write one character and update the cursor. |
-| `vga_print(text)` | Write a null-terminated string. |
+| `vga_putc(c)` | write one character and update the cursor. |
+| `vga_print(text)` | write a null-terminated string. |
 | `vga_set_color(fg, bg)` | Set the current foreground and background colors. |
-| `vga_write_char(x, y, c, color)` | Write one cell at an explicit position. |
+| `vga_write_char(x, y, c, color)` | write one cell at an explicit position. |
 | `vga_fill_rect(...)` | Fill a character-cell rectangle. |
 | `vga_set_cursor(x, y)` | Move the hardware cursor. |
 | `vga_refresh_cursor()` | Synchronize the hardware cursor. |
@@ -72,7 +72,7 @@ The main functions are:
 
 The text console remains the recovery path while graphics are developed. The planned stages are:
 
-1. Read and map a Multiboot framebuffer.
+1. read and map a Multiboot framebuffer.
 2. Add pixel and rectangle primitives.
 3. Render a bitmap font and graphical terminal.
 4. Add PS/2 mouse packets and input events.

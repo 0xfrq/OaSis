@@ -66,9 +66,9 @@ The [build and testing guide](../09-build/testing/) contains a complete networki
 The sections below retain the detailed filesystem and application command notes.
 
 
-shell berjalan sebagai infinite loop di `kernel_main()` (`src/kernel/core/kernel.c`).
+shell runs as an infinite loop in `kernel_main()` (`src/kernel/core/kernel.c`).
 
-## loop utama
+## Loop main
 
 ```c
 while (1) {
@@ -83,9 +83,9 @@ while (1) {
  if (strcmp(input, "help") == 0) { ... }
  else if (starts_with(input, "edit ")) { ... }
  else if (starts_with(input, "cat ")) { ... }
- // ... semua command ...
+ // ... all commands ...
  else if (index != 0) {
- vga_print("perintah tidak dikenal: ");
+ vga_print("unknown command: ");
  vga_print(input);
  vga_print("\n");
  }
@@ -93,7 +93,7 @@ while (1) {
  index = 0;
  // print prompt lagi
  vga_print("oasis"); vga_putc('(');
- vfs_getcwd(cwd_buf, sizeof(cwd_buf));
+ VFS_getcwd(cwd_buf, sizeof(cwd_buf));
  vga_print(cwd_buf); vga_putc(')'); vga_print("> ");
  vga_refresh_cursor();
  }
@@ -108,19 +108,19 @@ while (1) {
 
 INTERNAL_MAX = 256.
 
-## command reference
+## Command reference
 
-### help
+### Help
 
-print daftar command. kalau `help more` tampilkan semua command termasuk yang jarang dipakai.
+print the command list. if `help more` show all commands, including less common commands.
 
-### ls [path]
+### Ls [path]
 
-list directory. parse output dari `vfs_list()`:
-- kalau type 'd' (directory): warna kuning (VGA_COLOR_YELLOW)
-- kalau type 'f' (file): warna putih
+list directory. parse output from `VFS_list()`:
+- if type 'd' (directory): color kuning (VGA_color_YELLOW)
+- if type 'f' (file): color putih
 
-output dari vfs_list format: `d nama_dir\nf nama_file\n`
+output from VFS_list format: `d nama_dir\nf nama_file\n`
 
 ```c
 if (out[j] == 'd') {
@@ -133,100 +133,100 @@ if (out[j] == 'd') {
 }
 ```
 
-### cd <path>
+### Cd <path>
 
-panggil `vfs_chdir(arg)`. kalau return != 0, print "cd: failed".
+call `VFS_chdir(arg)`. if return != 0, print "cd: failed".
 
-### pwd
+### Pwd
 
-panggil `vfs_getcwd(pathbuf, sizeof(pathbuf))`, print hasilnya.
+call `VFS_getcwd(pathbuf, sizeof(pathbuf))`, print the result.
 
-### mkdir <path>
+### Mkdir <path>
 
-panggil `vfs_mkdir(arg)`.
+call `VFS_mkdir(arg)`.
 
-### touch <path>
+### Touch <path>
 
-panggil `vfs_create(arg)`.
+call `VFS_create(arg)`.
 
-### rm <path>
+### Rm <path>
 
-panggil `vfs_unlink(arg)`.
+call `VFS_unlink(arg)`.
 
-### rmdir <path>
+### Rmdir <path>
 
-panggil `vfs_rmdir(arg)`.
+call `VFS_rmdir(arg)`.
 
-### cat <path>
+### Cat <path>
 
 ```c
-int fd = vfs_open(arg, VFS_O_READ);
+int fd = VFS_open(arg, VFS_O_READ);
 if (fd < 0) { vga_print("cat: open failed\n"); }
 else {
  char rbuf[128]; int n;
- while ((n = vfs_read(fd, rbuf, sizeof(rbuf) - 1)) > 0) {
+ while ((n = VFS_read(fd, rbuf, sizeof(rbuf) - 1)) > 0) {
  rbuf[n] = 0;
  vga_print(rbuf);
  }
  vga_print("\n");
- vfs_close(fd);
+ VFS_close(fd);
 }
 ```
 
-### write <path> <text>
+### Write <path> <text>
 
 ```c
-int fd = vfs_open(arg, VFS_O_WRITE | VFS_O_CREATE | VFS_O_TRUNC);
+int fd = VFS_open(arg, VFS_O_WRITE | VFS_O_CREATE | VFS_O_TRUNC);
 if (fd >= 0) {
- vfs_write(fd, text, strlen(text));
- vfs_close(fd);
+ VFS_write(fd, text, strlen(text));
+ VFS_close(fd);
 }
 ```
 
-### append <path> <text>
+### Append <path> <text>
 
-sama seperti write tapi pakai VFS_O_APPEND.
+the same as write, but uses VFS_O_APPEND.
 
-### echo <text>
+### Echo <text>
 
-print teks + newline.
+print text + newline.
 
-### hexdump <path>
+### Hexdump <path>
 
-read file, print tiap byte sebagai hex.
+read file, print tiap byte as hex.
 
-### edit <path>
+### Edit <path>
 
-panggil `editor_run(arg)`.
+call `editor_run(arg)`.
 
-### nasm <path>
+### Nasm <path>
 
-panggil `asm_run_file(arg)`.
+call `asm_run_file(arg)`.
 
-### user <path>
+### User <path>
 
-panggil `run_user_test(arg)`.
+call `run_user_test(arg)`.
 
-### occ <path>
+### Occ <path>
 
-panggil `run_occ(arg)`.
+call `run_occ(arg)`.
 
-### dmesg
+### Dmesg
 
-panggil `log_dump()`.
+call `log_dump()`.
 
-### syscall
+### Syscall
 
 print tabel syscall.
 
-### uptime
+### Uptime
 
 `timer_get_ticks() / 100` = detik sejak boot.
 
-### meminfo
+### Meminfo
 
-print `pmm_get_free_pages()` + total memory.
+print `PMM_get_free_pages()` + total memory.
 
-### taskinfo
+### Taskinfo
 
-print semua task + status + stack + eip.
+print all task + status + stack + eip.

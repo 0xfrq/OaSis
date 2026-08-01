@@ -1,7 +1,7 @@
 ---
 layout: default
 title: GUI roadmap
-description: Track the planned path from VGA text mode to a graphical OaSis desktop.
+description: track the planned path from VGA text mode to a graphical OaSis desktop.
 content_type: roadmap
 audience: contributors and operating-system learners
 ---
@@ -19,7 +19,7 @@ The current display provides:
 - 80 columns by 25 rows.
 - 16 foreground colors and 16 background colors.
 - Scrolling, backspace handling, and a hardware cursor.
-- Simple rectangular character fills used by the boot screen and editor.
+- simple rectangular character fills used by the boot screen and editor.
 
 It does not provide pixel drawing, a framebuffer abstraction, windows, mouse input, or user-space graphics.
 
@@ -27,7 +27,7 @@ It does not provide pixel drawing, a framebuffer abstraction, windows, mouse inp
 
 ### 1. Framebuffer discovery
 
-Read the Multiboot framebuffer information when available. Add a kernel framebuffer API that respects the physical address, pitch, width, height, and bytes per pixel instead of assuming a fixed VGA address.
+read the Multiboot framebuffer information when available. Add a kernel framebuffer API that respects the physical address, pitch, width, height, and bytes per pixel instead of assuming a fixed VGA address.
 
 Proposed primitives include:
 

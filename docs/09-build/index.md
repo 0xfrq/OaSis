@@ -25,7 +25,7 @@ The default `make run` target also expects `disk.img` in the repository root. Th
 
 ## Build targets
 
-| Command | Result |
+| command | Result |
 | --- | --- |
 | `make` | Compile the kernel and create `oasis.iso`. |
 | `make clean` | Remove object files, `kernel.bin`, and `oasis.iso`. |
@@ -98,7 +98,7 @@ The main shell remains on VGA, so do not use `-nographic` when you need to inter
 
 ## Common build problems
 
-- If `gcc -m32` fails, install `gcc-multilib`.
-- If `grub-mkrescue` fails, install `grub-pc-bin`, `grub2-common`, and `xorriso`.
-- If QEMU cannot open `disk.img`, create or copy the project disk image before running `make run`.
-- If networking reports no controller, confirm the QEMU option contains `model=rtl8139`.
+- if `gcc -m32` fails, install `gcc-multilib`.
+- if `grub-mkrescue` fails, install `grub-pc-bin`, `grub2-common`, and `xorriso`.
+- if QEMU cannot open `disk.img`, create or copy the project disk image before running `make run`.
+- if networking reports no controller, confirm the QEMU option contains `model=rtl8139`.

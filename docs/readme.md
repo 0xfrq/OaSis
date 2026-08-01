@@ -16,14 +16,14 @@ The published documentation is available at [oasis.fariqdoing.tech](https://oasi
 
 ## Run the site locally
 
-Install Ruby, Bundler, and Jekyll through your operating system or Ruby environment. Then run:
+Install Ruby, Bundler, and Jekyll through your operating system or Ruby environment. then run:
 
 ```bash
 cd docs
 jekyll serve
 ```
 
-Open the local URL printed by Jekyll. The site reads navigation from `_config.yml` and renders Markdown pages through `_layouts/default.html`.
+open the local URL printed by Jekyll. The site reads navigation from `_config.yml` and renders Markdown pages through `_layouts/default.html`.
 
 ## Documentation structure
 
@@ -54,4 +54,4 @@ Keep documentation aligned with source code:
 - Do not claim that TCP, UDP, DHCP, sockets, network syscalls, or a GUI are implemented.
 - Link to detailed pages instead of duplicating long explanations.
 
-After changing navigation or front matter, run Jekyll locally and inspect the landing page, mobile menu, code blocks, tables, and generated table of contents.
+after changing navigation or front matter, run Jekyll locally and inspect the landing page, mobile menu, code blocks, tables, and generated table of contents.

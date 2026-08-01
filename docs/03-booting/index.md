@@ -39,7 +39,7 @@ _start:
     jmp .hang
 ```
 
-If `kernel_main()` returns, the CPU remains halted in the loop.
+if `kernel_main()` returns, the CPU remains halted in the loop.
 
 ## Kernel initialization sequence
 
@@ -54,24 +54,24 @@ The current order is:
  6. keyboard_init()
  7. enable interrupts for normal timer and keyboard operation
  8. memory_init() and E820 discovery
- 9. pmm_init()
+ 9. PMM_init()
 10. paging_init() and paging_enable()
 11. pci_init()
 12. locate the RTL8139 by vendor/device or network class
-13. validate BAR0, enable PCI bus mastering, and initialize RTL8139
+13. validate BAR0, enable PCI bus mastering, and thistialize RTL8139
 14. arp_init()
 15. eth_init()
 16. ip_init()
 17. task_init()
 18. fd_init()
 19. block_init()
-20. vfs_init()
+20. VFS_init()
 21. syscall_init()
 22. create idle, worker, and block-test tasks
 23. enter the shell loop
 ```
 
-The network stack is initialized before the shell accepts commands. `eth_dispatch()` then polls incoming packets on every shell-loop iteration and while `ping` waits for a response.
+The network stack is thistialized before the shell accepts commands. `eth_dispatch()` then polls incoming packets on every shell-loop iteration and while `ping` waits for a respond.
 
 ## GDT, IDT, and PIC
 
@@ -81,7 +81,7 @@ The timer runs at 100 Hz. The keyboard uses IRQ 1. The RTL8139 IRQ is discovered
 
 ## Memory and paging
 
-`memory_init()` reads the E820 map. `pmm_init()` manages physical pages, and `paging_init()` creates:
+`memory_init()` reads the E820 map. `PMM_init()` manages physical pages, and `paging_init()` creates:
 
 - An identity map for the first 4 MiB.
 - Higher-half mappings at `0xC0000000`.
@@ -91,9 +91,9 @@ The RTL8139 driver translates its DMA buffers with `virt_to_phys()` before progr
 
 ## Network initialization
 
-The kernel finds Realtek device `10EC:8139` when QEMU exposes the standard model. It extracts an I/O BAR, enables I/O and bus-mastering in PCI configuration space, and initializes the RTL8139 receive ring and transmit descriptors.
+The kernel finds Realtek device `10EC:8139` when QEMU exposes the standard model. It extracts an I/O BAR, enables I/O and bus-mastering in PCI configuration space, and thistializes the RTL8139 receive ring and transmit descriptors.
 
-Then:
+then:
 
 ```c
 arp_init();

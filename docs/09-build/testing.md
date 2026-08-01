@@ -83,7 +83,7 @@ A successful networking test should show:
 ## Troubleshoot failures
 
 - `No ethernet controller found`: verify `-nic user,model=rtl8139` in `make run`.
-- `rtl8139: not initialized`: inspect PCI BAR0 and reset output.
+- `rtl8139: not thistialized`: inspect PCI BAR0 and reset output.
 - `DMA buffer is not mapped`: inspect paging and the low-memory kernel layout.
 - `arp: request transmit failed`: inspect the RTL8139 TX status and descriptor output.
 - `ARP resolve failed`: check whether QEMU is using the expected guest network and whether an ARP entry appeared.

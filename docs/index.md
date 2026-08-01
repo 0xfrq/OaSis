@@ -14,19 +14,19 @@ This site explains how OaSis boots, manages hardware, runs user programs, stores
 ## Start here
 
 - [Build and test](09-build/): install tools, build the kernel, run QEMU, and verify networking.
-- [Architecture](02-arsitektur/): follow the boot sequence and runtime data paths.
+- [Architecture](02-architecture/): follow the boot sequence and runtime data paths.
 - [Networking](05-driver/networking/): understand PCI, RTL8139, Ethernet, ARP, IPv4, and ICMP.
 - [Shell commands](07-shell/): use the filesystem, compiler, diagnostics, and network commands.
 - [GUI roadmap](11-gui/): see what is planned beyond the current VGA text console.
 
 ## Implemented subsystems
 
-| Subsystem | Status | Main source |
+| Subsystem | status | Main source |
 | --- | --- | --- |
 | Boot and protection | Implemented | `src/boot/entry.asm`, `gdt.c`, `idt.c` |
-| Memory | Implemented | `memory.c`, `pmm.c`, `paging.c`, `heap.c` |
+| memory | Implemented | `memory.c`, `PMM.c`, `paging.c`, `heap.c` |
 | Tasks and user mode | Implemented | `task.c`, `task_user.c`, `syscall.c` |
-| OAFS filesystem | Implemented | `vfs.c`, `fd.c`, `block.c` |
+| OAFS filesystem | Implemented | `VFS.c`, `fd.c`, `block.c` |
 | Shell and applications | Implemented | `kernel.c`, `editor.c`, `asm.c` |
 | `occ` compiler | Implemented subset | `lexer.c`, `parser.c`, `codegen.c` |
 | PCI and RTL8139 | Implemented for QEMU | `pci.c`, `rtl8139.c` |
@@ -45,7 +45,7 @@ make
 make run
 ```
 
-Then run these commands in the OaSis shell:
+then run these commands in the OaSis shell:
 
 ```text
 pci
@@ -65,13 +65,13 @@ The display is also text-only. The next GUI milestones are framebuffer discovery
 
 ## Documentation map
 
-- [Introduction](01-pendahuluan/)
-- [Architecture](02-arsitektur/)
+- [Introduction](01-introduction/)
+- [Architecture](02-architecture/)
 - [Boot sequence](03-booting/)
 - [Kernel](04-kernel/)
-- [Drivers](05-driver/)
+- [drivers](05-driver/)
 - [Networking internals](05-driver/networking/)
-- [Filesystem](06-filesystem/)
+- [filesystem](06-filesystem/)
 - [Shell](07-shell/)
 - [Applications](08-apps/)
 - [Build](09-build/)

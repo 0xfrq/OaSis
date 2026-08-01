@@ -1,8 +1,8 @@
-# disk driver
+# Disk driver
 
-dokumentasi ini membahas bagaimana OaSis baca dan tulis ke hard disk.
+this page explains how OaSis reads and writes the hard disk.
 
-## daftar isi
+## Contents
 
 - [overview](#overview)
 - [ata/ide](#ataide)
@@ -13,59 +13,59 @@ dokumentasi ini membahas bagaimana OaSis baca dan tulis ke hard disk.
 
 ---
 
-## overview
+## Overview
 
-**disk driver** di OaSis handle read/write ke ATA/IDE hard disk.
+**disk driver** handles ATA/IDE hard-disk reads and writes.
 
-### kemampuan
+### Capabilities
 
-- baca sector (512 bytes)
-- tulis sector (512 bytes)
+- read sector (512 bytes)
+- write sector (512 bytes)
 - detect disk presence
 - PIO mode (programmed I/O)
 
-### limitation
+### Limitation
 
-- belum mendukung DMA (lebih lambat dari PIO)
-- belum mendukung LBA48 (max 128 GB)
-- belum mendukung SATA/AHCI
-- belum mendukung caching
+- does not support yet DMA (more lambat from PIO)
+- does not support yet LBA48 (max 128 GB)
+- does not support yet SATA/AHCI
+- does not support yet caching
 
-## ata/ide
+## Ata/ide
 
-**ATA (Advanced Technology Attachment)** adalah standard untuk hard disk.
+**ATA (Advanced Technology Attachment)** is standard for hard disk.
 
-### karakteristik
+### Karakteristik
 
 - **sector size**: 512 bytes
-- **addressing**: LBA (Logical Block Addressing)
-- **mode**: PIO (Programmed I/O) - CPU baca/tulis langsung
+- **addressing**: LBA (Logical block Addressing)
+- **mode**: PIO (Programmed I/O) - CPU read/write directly
 
-### primary ata bus
+### Primary ata bus
 
-OaSis pakai primary ATA bus:
+OaSis use primary ATA bus:
 
 ```text
 I/O ports: 0x1F0 - 0x1F7
 IRQ: 14
 ```
 
-## port i/o
+## Port i/o
 
-ATA pakai beberapa port I/O:
+ATA use beberapa port I/O:
 
 | port | read | write | deskripsi |
 |------|------|-------|-----------|
 | 0x1F0 | data | data | data port (16-bit) |
 | 0x1F1 | error | features | error/features |
-| 0x1F2 | sector count | sector count | jumlah sector |
+| 0x1F2 | sector count | sector count | number sector |
 | 0x1F3 | lba low | lba low | LBA bits 0-7 |
 | 0x1F4 | lba mid | lba mid | LBA bits 8-15 |
 | 0x1F5 | lba high | lba high | LBA bits 16-23 |
 | 0x1F6 | drive/head | drive/head | drive select + LBA bits 24-27 |
 | 0x1F7 | status | command | status/command register |
 
-### status register
+### Status register
 
 ```text
 bit 0: ERR (error occurred)
@@ -78,7 +78,7 @@ bit 6: RDY (drive ready)
 bit 7: BSY (busy)
 ```
 
-### command register
+### Command register
 
 ```text
 0x20: read sector (PIO)
@@ -86,9 +86,9 @@ bit 7: BSY (busy)
 0xEC: identify drive
 ```
 
-## read sector
+## Read sector
 
-### flow
+### Flow
 
 ```text
 set sector count
@@ -104,7 +104,7 @@ read 256 words (512 bytes)
 done
 ```
 
-### implementasi
+### Implementasi
 
 ```c
 int ata_read_sector(uint32_t lba, void *buffer) {
@@ -140,9 +140,9 @@ int ata_read_sector(uint32_t lba, void *buffer) {
 }
 ```
 
-## write sector
+## Write sector
 
-### flow
+### Flow
 
 ```text
 set sector count
@@ -160,7 +160,7 @@ flush cache
 done
 ```
 
-### implementasi
+### Implementasi
 
 ```c
 int ata_write_sector(uint32_t lba, const void *buffer) {
@@ -200,45 +200,45 @@ int ata_write_sector(uint32_t lba, const void *buffer) {
 }
 ```
 
-## api reference
+## Api reference
 
-### inisialisasi
+### Initialization
 
 ```c
 void ata_init(void);
 ```
 
-inisialisasi ATA driver. detect disk presence.
+initialization ATA driver. detect disk presence.
 
-### detect disk
+### Detect disk
 
 ```c
 int ata_detect(void);
 ```
 
-detect apakah ada disk di primary ATA.
+detect whether a disk is present on the primary ATA channel.
 
 **return:**
 - `0`: disk detected
 - `-1`: no disk
 
-### read sector
+### Read sector
 
 ```c
 int ata_read_sector(uint32_t lba, void *buffer);
 ```
 
-baca satu sector (512 bytes) dari disk.
+read one sector (512 bytes) from disk.
 
 **parameter:**
 - `lba`: logical block address
-- `buffer`: buffer untuk menyimpan data (minimal 512 bytes)
+- `buffer`: buffer for store data (minimal 512 bytes)
 
 **return:**
 - `0`: success
 - `-1`: error
 
-**contoh:**
+**example:**
 ```c
 uint8_t buffer[512];
 if (ata_read_sector(0, buffer) == 0) {
@@ -246,23 +246,23 @@ if (ata_read_sector(0, buffer) == 0) {
 }
 ```
 
-### write sector
+### Write sector
 
 ```c
 int ata_write_sector(uint32_t lba, const void *buffer);
 ```
 
-tulis satu sector (512 bytes) ke disk.
+write one sector (512 bytes) to disk.
 
 **parameter:**
 - `lba`: logical block address
-- `buffer`: data yang mau ditulis (512 bytes)
+- `buffer`: data that mau ditulis (512 bytes)
 
 **return:**
 - `0`: success
 - `-1`: error
 
-**contoh:**
+**example:**
 ```c
 uint8_t data[512];
 // fill data
@@ -271,34 +271,34 @@ if (ata_write_sector(0, data) == 0) {
 }
 ```
 
-### read multiple sectors
+### Read multiple sectors
 
 ```c
 int ata_read_sectors(uint32_t lba, uint32_t count, void *buffer);
 ```
 
-baca multiple sectors.
+read multiple sectors.
 
 **parameter:**
 - `lba`: start LBA
-- `count`: jumlah sector
+- `count`: number sector
 - `buffer`: buffer (minimal count * 512 bytes)
 
 **return:**
 - `0`: success
 - `-1`: error
 
-### write multiple sectors
+### Write multiple sectors
 
 ```c
 int ata_write_sectors(uint32_t lba, uint32_t count, const void *buffer);
 ```
 
-tulis multiple sectors.
+write multiple sectors.
 
 **parameter:**
 - `lba`: start LBA
-- `count`: jumlah sector
+- `count`: number sector
 - `buffer`: data (count * 512 bytes)
 
 **return:**
@@ -307,9 +307,9 @@ tulis multiple sectors.
 
 ---
 
-## helper functions
+## Helper functions
 
-### wait ready
+### Wait ready
 
 ```c
 int ata_wait_ready(void) {
@@ -327,7 +327,7 @@ int ata_wait_ready(void) {
 }
 ```
 
-### wait drq
+### Wait drq
 
 ```c
 int ata_wait_drq(void) {
@@ -348,26 +348,26 @@ int ata_wait_drq(void) {
 
 ---
 
-## troubleshooting
+## Troubleshooting
 
-### disk tidak detected
+### Disk not detected
 
-- cek ATA controller enabled di BIOS/QEMU
-- cek port 0x1F7 (harus bisa dibaca)
-- cek drive select byte (0xE0 untuk drive 0)
+- check that the ATA controller is enabled in BIOS or QEMU
+- cek port 0x1F7 (harus can dibaca)
+- cek drive select byte (0xE0 for drive 0)
 
-### read/write error
+### Read/write error
 
 - cek status register (bit 0 = error)
 - cek LBA address valid
 - cek buffer size (minimal 512 bytes)
 
-### data corrupt
+### Data corrupt
 
-- cek flush cache setelah write
+- cek flush cache after write
 - cek sector alignment
-- cek concurrent access (kalau ada)
+- cek concurrent access (if ada)
 
 ---
 
-**kembali ke:** [driver →](readme.md)
+**back to:** [driver →](readme.md)

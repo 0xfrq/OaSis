@@ -1,8 +1,8 @@
-# operasi filesystem
+# Operations filesystem
 
-dokumentasi ini membahas operasi-operasi file di oafs.
+this page explains file operations in OAFS.
 
-## daftar isi
+## Contents
 
 - [overview](#overview)
 - [path resolution](#path-resolution)
@@ -15,43 +15,43 @@ dokumentasi ini membahas operasi-operasi file di oafs.
 
 ---
 
-## overview
+## Overview
 
-semua operasi file di OaSis lewat vfs layer. aplikasi tidak perlu tahu detail filesystem.
+all file operations in OaSis pass through the VFS layer. applications do not need to know detail filesystem.
 
-### flow umum
+### Flow umum
 
 ```text
-aplikasi call vfs_open("/path/to/file")
+aplikasi call VFS_open("/path/to/file")
   ↓
-vfs resolve path (cari inode)
+VFS resolves the path and finds the inode
   ↓
-vfs alloc open file descriptor
+VFS alloc open file descriptor
   ↓
-return fd ke aplikasi
+return the fd to the application
   ↓
-aplikasi menggunakan fd untuk read/write
+the application uses the fd to read and write
   ↓
-aplikasi call vfs_close(fd)
+aplikasi call VFS_close(fd)
 ```
 
-## path resolution
+## Path resolution
 
-**path resolution** adalah proses convert path string jadi inode number.
+**path resolution** is process convert path string jadi inode number.
 
-### contoh
+### Example
 
 ```text
 /home/user/file.txt
 
-1. mulai dari root (inode 0)
-2. cari "home" di root directory -> inode 2
-3. cari "user" di inode 2 -> inode 5
-4. cari "file.txt" di inode 5 -> inode 12
+1. start at the root (inode 0)
+2. find "home" in the root directory -> inode 2
+3. find "user" in inode 2 -> inode 5
+4. find "file.txt" in inode 5 -> inode 12
 5. return inode 12
 ```
 
-### implementasi
+### Implementasi
 
 ```c
 int resolve_path(const char *path, uint32_t *inode_out) {
@@ -84,22 +84,22 @@ int resolve_path(const char *path, uint32_t *inode_out) {
 }
 ```
 
-## open file
+## Open file
 
-### flags
+### Flags
 
 | flag | nilai | deskripsi |
 |------|-------|-----------|
-| `VFS_O_READ` | 0x01 | buka untuk baca |
-| `VFS_O_WRITE` | 0x02 | buka untuk tulis |
-| `VFS_O_CREATE` | 0x04 | membuat kalau belum ada |
-| `VFS_O_TRUNC` | 0x08 | truncate ke 0 length |
-| `VFS_O_APPEND` | 0x10 | tulis di ujung file |
+| `VFS_O_read` | 0x01 | buka for read |
+| `VFS_O_write` | 0x02 | buka for write |
+| `VFS_O_CREATE` | 0x04 | create if not yet ada |
+| `VFS_O_TRUNC` | 0x08 | truncate to length 0 |
+| `VFS_O_APPEND` | 0x10 | write at the end of the file |
 
-### implementasi
+### Implementasi
 
 ```c
-int vfs_open(const char *path, uint32_t flags) {
+int VFS_open(const char *path, uint32_t flags) {
     uint32_t inode_num;
     int found = resolve_path(path, &inode_num) == 0;
     
@@ -132,12 +132,12 @@ int vfs_open(const char *path, uint32_t flags) {
 }
 ```
 
-## read file
+## Read file
 
-### implementasi
+### Implementasi
 
 ```c
-int vfs_read(int fd, void *buf, uint32_t size) {
+int VFS_read(int fd, void *buf, uint32_t size) {
     if (!is_valid_fd(fd)) return -1;
     
     uint32_t inode_num = open_files[fd].inode;
@@ -176,12 +176,12 @@ int vfs_read(int fd, void *buf, uint32_t size) {
 }
 ```
 
-## write file
+## Write file
 
-### implementasi
+### Implementasi
 
 ```c
-int vfs_write(int fd, const void *buf, uint32_t size) {
+int VFS_write(int fd, const void *buf, uint32_t size) {
     if (!is_valid_fd(fd)) return -1;
     
     uint32_t inode_num = open_files[fd].inode;
@@ -226,10 +226,10 @@ int vfs_write(int fd, const void *buf, uint32_t size) {
 }
 ```
 
-## create file
+## Create file
 
 ```c
-int vfs_create(const char *path) {
+int VFS_create(const char *path) {
     // parse path to get parent dir and filename
     char parent_path[256], filename[256];
     split_path(path, parent_path, filename);
@@ -255,10 +255,10 @@ int vfs_create(const char *path) {
 }
 ```
 
-## delete file
+## Delete file
 
 ```c
-int vfs_delete(const char *path) {
+int VFS_delete(const char *path) {
     uint32_t inode_num;
     if (resolve_path(path, &inode_num) != 0) {
         return -1;  // not found
@@ -285,10 +285,10 @@ int vfs_delete(const char *path) {
 }
 ```
 
-## seek
+## Seek
 
 ```c
-int vfs_seek(int fd, int32_t offset, int whence) {
+int VFS_seek(int fd, int32_t offset, int whence) {
     if (!is_valid_fd(fd)) return -1;
     
     uint32_t inode_num = open_files[fd].inode;
@@ -319,4 +319,4 @@ int vfs_seek(int fd, int32_t offset, int whence) {
 
 ---
 
-**kembali ke:** [filesystem →](readme.md)
+**back to:** [filesystem →](readme.md)

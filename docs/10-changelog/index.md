@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Changelog
-description: Track notable OaSis fixes, features, and documentation updates.
+description: track notable OaSis fixes, features, and documentation updates.
 content_type: reference
 audience: contributors
 ---
@@ -29,11 +29,11 @@ Updated the README and documentation site with the networking architecture, repr
 
 ## 2026-06-29: Assembler `parse_int` whitespace fix
 
-**Bug**: The assembler's `parse_int()` function did not handle leading whitespace. The `occ` code generator emits parameter loads such as `[ebp + 8]`. Without whitespace handling, `[ebp + 8]` was assembled as `[ebp + 0]`.
+**Bug**: The assembler's `parse_int()` function did not handles leading whitespace. The `occ` code generator emits parameter loads such as `[ebp + 8]`. without whitespace handling, `[ebp + 8]` was assembled as `[ebp + 0]`.
 
 **Fix**: Skip leading whitespace in `parse_int()` and tolerate trailing whitespace in hexadecimal and decimal parsing.
 
-**File**: `src/kernel/apps/asm.c`
+**file**: `src/kernel/apps/asm.c`
 
 ## 2026-06-29: Ring 3 page fault fixes
 
@@ -45,16 +45,16 @@ Updated the README and documentation site with the networking architecture, repr
 - Remap user-mode symbols such as `_printf` to `_usr_printf`.
 - Use `asm_assemble_user()` for ring 3 programs.
 
-**Files**: `src/kernel/core/paging.c`, `src/kernel/apps/asm.c`, `src/kernel/tasks/task_user.c`, `include/asm.h`
+**files**: `src/kernel/core/paging.c`, `src/kernel/apps/asm.c`, `src/kernel/tasks/task_user.c`, `include/asm.h`
 
 ## 2026-06-29: Code-generation entry trampoline
 
-Generated programs now begin with `call _main` followed by `ret`, so execution reaches `main` instead of starting at the first helper function.
+generated programs now begin with `call _main` followed by `ret`, so execution reaches `main` instead of starting at the first helper function.
 
-**File**: `src/kernel/lib/codegen.c`
+**file**: `src/kernel/lib/codegen.c`
 
 ## 2026-06-29: Assignment code-generation fall-through
 
 Added the missing `break` after assignment generation so assignment statements no longer fall through into `if` generation.
 
-**File**: `src/kernel/lib/codegen.c`
+**file**: `src/kernel/lib/codegen.c`

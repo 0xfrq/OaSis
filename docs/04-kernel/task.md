@@ -1,11 +1,11 @@
 ---
 layout: default
-title: Task Scheduling
+title: Task scheduling
 ---
 
-# Task Scheduling
+# Task scheduling
 
-## Task Structure
+## Task structure
 
 Each task is represented by a `task_t` structure:
 
@@ -24,11 +24,11 @@ typedef struct task_t {
 } task_t;
 ```
 
-## Task Creation
+## Task creation
 
 `task_create(function_pointer)` allocates a stack (4 pages = 16KB), maps it as user pages, initializes the context (EIP = function address, EFLAGS = 0x202, CS = 0x08), and adds the task to the circular ready list.
 
-### Stack Layout per Task
+### Stack Layout per task
 ```text
 Stack base + 16KB
   [return address for first function]
@@ -47,12 +47,12 @@ The scheduler uses **round-robin** with a circular linked list:
 4. Updates CR3 if the new task has a different page directory.
 5. Returns to the interrupted context (no actual register save/restore — uses the IRET frame already on the stack).
 
-## Task States
+## Task states
 
-- `TASK_READY` (1): Can be scheduled.
-- `TASK_RUNNING` (2): Currently executing.
-- `TASK_BLOCKED` (3): Waiting for an event.
-- `TASK_DEAD` (4): Terminated, waiting for cleanup.
+- `task_READY` (1): Can be scheduled.
+- `task_RUNNING` (2): Currently executing.
+- `task_BLOCKED` (3): Waiting for an event.
+- `task_DEAD` (4): Terminated, waiting for cleanup.
 
 ## User Mode Tasks
 
@@ -65,7 +65,7 @@ The scheduler uses **round-robin** with a circular linked list:
 
 ## CR3 Switching
 
-When switching between tasks with different page directories, CR3 is updated:
+when switching between tasks with different page directories, CR3 is updated:
 ```c
 if (current_task->context.cr3 != 0) {
     paging_switch_dir((pde_t *)current_task->context.cr3);

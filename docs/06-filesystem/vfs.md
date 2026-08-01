@@ -1,60 +1,60 @@
-# virtual filesystem (vfs)
+# Virtual filesystem (VFS)
 
-dokumentasi ini membahas vfs layer di OaSis.
+this page explains VFS layer in OaSis.
 
-## daftar isi
+## Contents
 
-- [apa itu vfs](#apa-itu-vfs)
-- [arsitektur vfs](#arsitektur-vfs)
+- [apa itu VFS](#apa-itu-VFS)
+- [architecture VFS](#architecture-VFS)
 - [open file table](#open-file-table)
 - [inode operations](#inode-operations)
 
 ---
 
-## apa itu vfs
+## Apa itu VFS
 
-**vfs (virtual filesystem)** adalah abstraction layer yang membuat semua filesystem terlihat sama.
+**VFS (virtual filesystem)** is abstraction layer that create all filesystem terlihat same.
 
-### kenapa butuh vfs?
+### Why butuh VFS?
 
 bayangin kamu memiliki 2 filesystem:
-- oafs di hard disk
-- fat32 di usb drive
+- OAFS on a hard disk
+- FAT32 on a USB drive
 
-tanpa vfs:
+without VFS:
 ```c
-// baca dari oafs
-oafs_read(inode, offset, buf, size);
+// read from OAFS
+OAFS_read(inode, offset, buf, size);
 
-// baca dari fat32
+// read from FAT32
 fat32_read(cluster, offset, buf, size);
 ```
 
-dengan vfs:
+with VFS:
 ```c
-// baca dari mana aja
-int fd = vfs_open(path, O_RDONLY);
-vfs_read(fd, buf, size);
-vfs_close(fd);
+// read from any filesystem
+int fd = VFS_open(path, O_RDONLY);
+VFS_read(fd, buf, size);
+VFS_close(fd);
 ```
 
-### manfaat
+### Manfaat
 
-- **unified API**: satu API untuk semua filesystem
-- **swap filesystem**: gampang ganti filesystem tanpa ubah aplikasi
-- **mount points**: bisa mount multiple filesystem
+- **unified API**: one API for all filesystem
+- **swap filesystem**: gampang ganti filesystem without ubah application
+- **mount points**: can mount multiple filesystem
 
-## arsitektur vfs
+## Architecture VFS
 
 ```text
 ┌─────────────────────────────────────┐
 │           aplikasi                  │
 ├─────────────────────────────────────┤
-│         vfs layer                   │
-│  vfs_open, vfs_read, vfs_write ... │
+│         VFS layer                   │
+│  VFS_open, VFS_read, VFS_write ... │
 ├─────────────────────────────────────┤
 │       filesystem drivers            │
-│  oafs │ fat32 │ ext2 │ ...         │
+│  OAFS │ fat32 │ ext2 │ ...         │
 ├─────────────────────────────────────┤
 │         block device layer          │
 │  ata_read_sector, ata_write_sector  │
@@ -63,14 +63,14 @@ vfs_close(fd);
 └─────────────────────────────────────┘
 ```
 
-## open file table
+## Open file table
 
-vfs maintain table untuk track file yang lagi kebuka.
+VFS maintain table for track file that lagi kebuka.
 
-### struktur
+### Structure
 
 ```c
-#define MAX_OPEN_FILES 64
+# Define MAX_OPEN_FILES 64
 
 typedef struct {
     uint32_t inode;     // inode number
@@ -83,7 +83,7 @@ typedef struct {
 open_file_t open_files[MAX_OPEN_FILES];
 ```
 
-### operasi
+### Operations
 
 **alloc slot:**
 ```c
@@ -109,45 +109,45 @@ void release_open_file(int fd) {
 }
 ```
 
-## inode operations
+## Inode operations
 
-vfs define standard operations yang harus di-implement sama filesystem.
+VFS define standard operations that harus di-implement same filesystem.
 
-### file operations
+### File operations
 
-| operasi | deskripsi |
+| operations | deskripsi |
 |---------|-----------|
 | `open(path, flags)` | buka file |
 | `close(fd)` | tutup file |
-| `read(fd, buf, size)` | baca dari file |
-| `write(fd, buf, size)` | tulis ke file |
-| `seek(fd, offset, whence)` | pindah posisi |
-| `stat(path, buf)` | mendapatkan file info |
+| `read(fd, buf, size)` | read from file |
+| `write(fd, buf, size)` | write to a file |
+| `seek(fd, offset, whence)` | move the position |
+| `stat(path, buf)` | get file information |
 
-### directory operations
+### Directory operations
 
-| operasi | deskripsi |
+| operations | deskripsi |
 |---------|-----------|
-| `mkdir(path)` | membuat directory |
+| `mkdir(path)` | create directory |
 | `rmdir(path)` | hapus directory |
-| `readdir(path, entry)` | baca isi directory |
-| `chdir(path)` | pindah current directory |
-| `getcwd(buf, size)` | mendapatkan current directory |
+| `readdir(path, entry)` | read isi directory |
+| `chdir(path)` | change the current directory |
+| `getcwd(buf, size)` | get the current directory |
 
-### management operations
+### Management operations
 
-| operasi | deskripsi |
+| operations | deskripsi |
 |---------|-----------|
-| `create(path)` | membuat file baru |
+| `create(path)` | create file new |
 | `unlink(path)` | hapus file |
 | `rename(old, new)` | rename file/directory |
 | `truncate(path, size)` | potong file |
 
 ---
 
-## current working directory
+## Current working directory
 
-vfs track current working directory (cwd).
+VFS track current working directory (cwd).
 
 ```c
 typedef struct {
@@ -158,10 +158,10 @@ typedef struct {
 cwd_t current_dir;
 ```
 
-### chdir
+### Chdir
 
 ```c
-int vfs_chdir(const char *path) {
+int VFS_chdir(const char *path) {
     uint32_t inode;
     if (resolve_path(path, &inode) != 0) {
         return -1;
@@ -173,14 +173,14 @@ int vfs_chdir(const char *path) {
 }
 ```
 
-### getcwd
+### Getcwd
 
 ```c
-void vfs_getcwd(char *buf, uint32_t size) {
+void VFS_getcwd(char *buf, uint32_t size) {
     strncpy(buf, current_dir.path, size);
 }
 ```
 
 ---
 
-**kembali ke:** [filesystem →](readme.md)
+**back to:** [filesystem →](readme.md)
